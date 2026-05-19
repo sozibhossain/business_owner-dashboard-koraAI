@@ -65,12 +65,15 @@ export default function LiveViewPage() {
     return buckets;
   }, [appointments]);
 
-  const activityByType = useMemo(() => {
-    return activities.reduce((acc: Record<string, number>, item: any) => {
+  const activityByType = useMemo<Record<string, number>>(() => {
+    const counts: Record<string, number> = {};
+
+    activities.forEach((item: any) => {
       const key = item.type || "other";
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
+      counts[key] = (counts[key] || 0) + 1;
+    });
+
+    return counts;
   }, [activities]);
 
   const stats = [
