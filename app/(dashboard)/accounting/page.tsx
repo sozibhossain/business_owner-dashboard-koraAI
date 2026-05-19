@@ -52,6 +52,17 @@ const statusVariant: Record<string, any> = {
   cancelled: "secondary",
 };
 
+const formatTooltipCurrency = (value: unknown) => {
+  const numericValue =
+    typeof value === "number"
+      ? value
+      : Array.isArray(value)
+        ? Number(value[0] ?? 0)
+        : Number(value ?? 0);
+
+  return formatCurrency(Number.isFinite(numericValue) ? numericValue : 0);
+};
+
 export default function AccountingPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -229,7 +240,7 @@ export default function AccountingPage() {
                       <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
                       <Tooltip
-                        formatter={(value: number) => formatCurrency(value)}
+                        formatter={(value) => formatTooltipCurrency(value)}
                         contentStyle={{
                           background: "#0d1a2d",
                           border: "1px solid #1e2d40",
