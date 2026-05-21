@@ -27,6 +27,13 @@ export const employeesApi = {
   toggleStatus: (id: string, data: { status: string }) => api.patch(`/employees/${id}/status`, data),
 };
 
+export const customersApi = {
+  getAll: (params?: object) => api.get("/customers", { params }),
+  search: (q: string) => api.get("/customers/search", { params: { q } }),
+  create: (data: object) => api.post("/customers", data),
+  getHistory: (id: string) => api.get(`/customers/${id}/history`),
+};
+
 export const appointmentsApi = {
   getAll: (params?: object) => api.get("/appointments", { params }),
   getById: (id: string) => api.get(`/appointments/${id}`),
@@ -55,6 +62,14 @@ export const requestsApi = {
   approve: (id: string) => api.patch(`/requests/${id}/approve`),
   reject: (id: string) => api.patch(`/requests/${id}/reject`),
   getHistory: () => api.get("/requests/history"),
+};
+
+export const servicesApi = {
+  getAll: (params?: object) => api.get("/services", { params }),
+  getById: (id: string) => api.get(`/services/${id}`),
+  create: (data: object) => api.post("/services", data),
+  update: (id: string, data: object) => api.put(`/services/${id}`, data),
+  delete: (id: string) => api.delete(`/services/${id}`),
 };
 
 export const calendarApi = {

@@ -21,6 +21,19 @@ const quickActions = [
   { label: "Manage Employees", icon: "Team" },
 ];
 
+type DashboardEmployee = {
+  status?: string;
+};
+
+type DashboardAppointment = {
+  _id: string;
+  startTime?: string;
+  endTime?: string;
+  status?: string;
+  customer?: { name?: string };
+  client?: { name?: string };
+};
+
 export default function BusinessOwnerDashboard() {
   const [koraInput, setKoraInput] = useState("");
   const [koraMessages, setKoraMessages] = useState<
@@ -52,8 +65,8 @@ export default function BusinessOwnerDashboard() {
   const appointments = appointmentsData?.data || [];
   const employees = employeesData?.data || [];
   const pendingRequests = requestsData?.data || [];
-  const activeEmployees = employees.filter((employee: any) =>
-    ["working", "on_break"].includes(employee.status)
+  const activeEmployees = employees.filter((employee: DashboardEmployee) =>
+    ["working", "on_break"].includes(employee.status || "")
   );
 
   const insightCards = useMemo(
@@ -114,6 +127,9 @@ export default function BusinessOwnerDashboard() {
     },
   ];
 
+  const getAppointmentGuestName = (appointment: DashboardAppointment) =>
+    appointment.customer?.name || appointment.client?.name || "Customer";
+
   const sendKoraMessage = () => {
     if (!koraInput.trim()) return;
 
@@ -160,14 +176,14 @@ export default function BusinessOwnerDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Today's Schedule</CardTitle>
+              <CardTitle className="text-sm">Today&apos;s Schedule</CardTitle>
             </CardHeader>
             <CardContent>
               {appointments.length === 0 ? (
                 <p className="text-sm text-gray-500">No appointments scheduled for today.</p>
               ) : (
                 <div className="space-y-0">
-                  {appointments.map((appointment: any) => (
+                  {appointments.map((appointment: DashboardAppointment) => (
                     <div
                       key={appointment._id}
                       className="flex items-center gap-4 py-2.5 border-b border-[#1e2d40] last:border-0"
@@ -181,7 +197,7 @@ export default function BusinessOwnerDashboard() {
                         <div className="w-1 h-8 bg-blue-500 rounded-full flex-shrink-0" />
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-200 truncate">
-                            {appointment.client?.name || "Customer"}
+                            {getAppointmentGuestName(appointment)}
                           </p>
                           <p className="text-xs text-gray-400 capitalize">
                             {String(appointment.status || "upcoming").replace("_", " ")}
@@ -193,7 +209,7 @@ export default function BusinessOwnerDashboard() {
                       </span>
                       <Avatar className="w-7 h-7 flex-shrink-0">
                         <AvatarFallback className="text-[9px]">
-                          {getInitials(appointment.client?.name || "CU")}
+                          {getInitials(getAppointmentGuestName(appointment) || "CU")}
                         </AvatarFallback>
                       </Avatar>
                     </div>

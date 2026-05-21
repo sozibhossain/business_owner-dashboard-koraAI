@@ -21,6 +21,8 @@ import {
 } from "recharts";
 
 const getHourLabel = (value: number) => `${String(value).padStart(2, "0")}:00`;
+const getAppointmentGuestName = (appointment: any) =>
+  appointment.customer?.name || appointment.client?.name || "Customer";
 
 export default function LiveViewPage() {
   const { data: activityResponse, isLoading: activityLoading } = useQuery({
@@ -253,7 +255,7 @@ export default function LiveViewPage() {
                       <div className="w-14 text-xs text-gray-500">{appointment.startTime}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-gray-200">
-                          {appointment.client?.name || "Customer"}
+                          {getAppointmentGuestName(appointment)}
                         </p>
                         <p className="text-[10px] text-gray-500">
                           {appointment.status} • {appointment.endTime}
@@ -261,7 +263,7 @@ export default function LiveViewPage() {
                       </div>
                       <Avatar className="w-6 h-6">
                         <AvatarFallback className="text-[9px]">
-                          {getInitials(appointment.client?.name || "CU")}
+                          {getInitials(getAppointmentGuestName(appointment) || "CU")}
                         </AvatarFallback>
                       </Avatar>
                     </div>

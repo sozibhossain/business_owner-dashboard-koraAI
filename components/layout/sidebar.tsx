@@ -6,7 +6,7 @@ import { cn, getInitials } from "@/lib/utils";
 import {
   LayoutDashboard, Sparkles, Radio, CheckSquare, Calendar,
   Mail, Users, ClipboardList, DollarSign, Navigation, Settings,
-  LogOut, ChevronLeft, ChevronRight
+  LogOut, ChevronLeft, ChevronRight, Scissors
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -19,6 +19,7 @@ const navItems = [
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/inbox", label: "Inbox", icon: Mail, badge: "3" },
   { href: "/employees", label: "Employees", icon: Users },
+  { href: "/services", label: "Services", icon: Scissors },
   { href: "/requests", label: "Requests", icon: ClipboardList, badge: "3" },
   { href: "/accounting", label: "Accounting", icon: DollarSign },
   { href: "/kora-go", label: "Kora Go", icon: Navigation },

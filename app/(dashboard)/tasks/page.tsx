@@ -29,6 +29,9 @@ const toDateKey = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const getAppointmentGuestName = (appointment: any) =>
+  appointment.customer?.name || appointment.client?.name || "Customer";
+
 export default function TasksPage() {
   const [anchorDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(toDateKey(startOfWeek(anchorDate)));
@@ -253,7 +256,7 @@ export default function TasksPage() {
                   <div key={appointment._id} className="rounded-lg bg-[#1e2d40] p-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs font-medium text-gray-200">
-                        {appointment.client?.name || "Customer"}
+                        {getAppointmentGuestName(appointment)}
                       </p>
                       <Badge variant="secondary" className="text-[10px]">
                         {appointment.status}
