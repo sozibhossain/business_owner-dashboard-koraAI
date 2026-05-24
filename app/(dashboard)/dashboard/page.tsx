@@ -151,7 +151,7 @@ export default function BusinessOwnerDashboard() {
         title="Business Overview"
         subtitle="Live booking, team, request, and revenue data from your backend."
       />
-      <div className="p-6 space-y-5">
+      <div className="space-y-5 p-3 sm:p-4 lg:p-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {stats.map((item) => (
             <Card key={item.label}>

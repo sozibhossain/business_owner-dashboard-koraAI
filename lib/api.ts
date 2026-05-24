@@ -89,6 +89,7 @@ export const inboxApi = {
   markRead: (chatId: string) => api.patch(`/inbox/${chatId}/read`),
   sendMessage: (data: { recipientId: string; content: string }) => api.post("/inbox", data),
   deleteMessage: (conversationId: string, messageId: string) => api.delete(`/inbox/${conversationId}/messages/${messageId}`),
+  getRecipients: (params?: { q?: string }) => api.get("/inbox/recipients", { params }),
 };
 
 export const koraAssistantApi = {

@@ -260,7 +260,7 @@ export default function CalendarPage() {
         }
       />
 
-      <div className="space-y-4 p-6">
+      <div className="space-y-4 p-3 sm:p-4 lg:p-6">
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex gap-1 rounded-lg bg-[#0d1a2d] p-1">

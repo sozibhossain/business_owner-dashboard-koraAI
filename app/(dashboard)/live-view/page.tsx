@@ -122,7 +122,7 @@ export default function LiveViewPage() {
         title="Live View"
         subtitle="Real-time operational view using activity, appointments, and inbox data."
       />
-      <div className="p-6 space-y-5">
+      <div className="space-y-5 p-3 sm:p-4 lg:p-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {(activityLoading || appointmentsLoading || conversationsLoading)
             ? Array.from({ length: 4 }).map((_, index) => (
