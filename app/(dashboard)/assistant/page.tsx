@@ -66,7 +66,7 @@ export default function AssistantPage() {
   return (
     <div>
       <Header title="Kora Assistant" subtitle="Your AI assistant that understands your business and gets things done." />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 lg:p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Chat */}
           <Card className="lg:col-span-2">

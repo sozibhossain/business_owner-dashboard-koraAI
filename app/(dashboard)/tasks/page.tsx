@@ -136,7 +136,7 @@ export default function TasksPage() {
         title="Weekly Tasks"
         subtitle="Live employee schedule coverage built from appointment and employee data."
       />
-      <div className="p-6 space-y-5">
+      <div className="space-y-5 p-3 sm:p-4 lg:p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {(employeesLoading || appointmentsLoading)
             ? Array.from({ length: 3 }).map((_, index) => (

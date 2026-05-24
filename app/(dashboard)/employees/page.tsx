@@ -268,7 +268,7 @@ export default function EmployeesPage() {
     {
       label: "Total Employees",
       value: totalEmployees,
-      helper: "↗ 12% vs last month",
+      helper: "On the team roster",
       icon: Users,
       color: "bg-blue-600",
       spark: "#3b82f6",
@@ -303,26 +303,58 @@ export default function EmployeesPage() {
     },
   ];
 
-  const insights = [
-    {
-      title: "Max is overbooked today",
-      sub: "120% of capacity",
-      color: "bg-red-600/15 text-red-300",
-      icon: "👤",
-    },
-    {
-      title: "Sarah has free slots tomorrow",
-      sub: "6 available slots",
-      color: "bg-blue-600/15 text-blue-300",
-      icon: "📆",
-    },
-    {
-      title: "Chris has low utilization",
-      sub: "45% this week",
-      color: "bg-amber-600/15 text-amber-300",
-      icon: "⚠️",
-    },
-  ];
+  const insights = useMemo(() => {
+    const items: { title: string; sub: string; color: string; icon: string }[] = [];
+
+    const overbooked = allEmployees.find(
+      (item: any) => (item.utilizationRate || 0) >= 100
+    );
+    if (overbooked) {
+      items.push({
+        title: `${overbooked.userId?.name || "An employee"} is overbooked`,
+        sub: `${overbooked.utilizationRate}% of capacity`,
+        color: "bg-red-600/15 text-red-300",
+        icon: "👤",
+      });
+    }
+
+    const underused = allEmployees
+      .filter(
+        (item: any) =>
+          (item.utilizationRate ?? 100) < 50 && item.status === "working"
+      )
+      .sort(
+        (a: any, b: any) => (a.utilizationRate || 0) - (b.utilizationRate || 0)
+      )[0];
+    if (underused) {
+      items.push({
+        title: `${underused.userId?.name || "An employee"} has low utilization`,
+        sub: `${underused.utilizationRate || 0}% this week`,
+        color: "bg-amber-600/15 text-amber-300",
+        icon: "⚠️",
+      });
+    }
+
+    if (onLeaveCount > 0) {
+      items.push({
+        title: `${onLeaveCount} on leave`,
+        sub: "Adjust schedules accordingly",
+        color: "bg-blue-600/15 text-blue-300",
+        icon: "📆",
+      });
+    }
+
+    if (items.length === 0) {
+      items.push({
+        title: "Team running smoothly",
+        sub: "No anomalies detected",
+        color: "bg-emerald-600/15 text-emerald-300",
+        icon: "✓",
+      });
+    }
+
+    return items;
+  }, [allEmployees, onLeaveCount]);
 
   const roleOptions = useMemo(() => {
     const set = new Set<string>();
@@ -345,7 +377,7 @@ export default function EmployeesPage() {
         }
       />
 
-      <div className="space-y-5 p-6">
+      <div className="space-y-5 p-3 sm:p-4 lg:p-6">
         {/* STATS */}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {stats.map((item) => (
