@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userApi } from "@/lib/api";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,27 +8,87 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import { toast } from "sonner";
 import { Save, Camera } from "lucide-react";
 
 export default function SettingsPage() {
-  const [name, setName] = useState("Alex Barber");
-  const [email, setEmail] = useState("alex@fademasters.com");
-  const [phone, setPhone] = useState("+353 87 123 4567");
-  const [jobTitle, setJobTitle] = useState("Owner");
-  const [businessName, setBusinessName] = useState("Fade Masters Barbershop");
-  const [bio, setBio] = useState("Passionate about delivering the best experience and keeping our clients looking and feeling great.");
-  const [businessAddress, setBusinessAddress] = useState("123 Fade Street, Dublin 2, Ireland");
-  const [businessEmail, setBusinessEmail] = useState("info@fademasters.com");
-  const [website, setWebsite] = useState("https://www.fademasters.com");
-  const [timezone, setTimezone] = useState("(GMT+01:00) Dublin, Ireland");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [bio, setBio] = useState("");
+  const [businessAddress, setBusinessAddress] = useState("");
+  const [businessEmail, setBusinessEmail] = useState("");
+  const [website, setWebsite] = useState("");
+  const [timezone, setTimezone] = useState("");
+  const [previewImage, setPreviewImage] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   const { data: profile } = useQuery({
     queryKey: ["profile"],
     queryFn: () => userApi.getProfile().then(r => r.data.data),
   });
+
+  useEffect(() => {
+    if (!profile) return;
+    setName(profile.name || "");
+    setEmail(profile.email || "");
+    setPhone(profile.phone || "");
+    setJobTitle(profile.jobTitle || "");
+    setBusinessName(profile.businessName || "");
+    setBio(profile.bio || "");
+    setBusinessAddress(profile.businessAddress || "");
+    setBusinessEmail(profile.businessEmail || "");
+    setWebsite(profile.website || "");
+    setTimezone(profile.timezone || "");
+  }, [profile]);
+
+  const updateMutation = useMutation({
+    mutationFn: (data: FormData) => userApi.updateProfile(data),
+    onSuccess: () => {
+      toast.success("Profile saved!");
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+    },
+    onError: () => toast.error("Failed to save profile."),
+  });
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => setPreviewImage(reader.result as string);
+    reader.readAsDataURL(file);
+    const fd = new FormData();
+    fd.append("profileImage", file);
+    updateMutation.mutate(fd);
+  };
+
+  const handleSaveProfile = () => {
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("email", email);
+    fd.append("phoneNumber", phone);
+    fd.append("jobTitle", jobTitle);
+    fd.append("businessName", businessName);
+    fd.append("bio", bio);
+    updateMutation.mutate(fd);
+  };
+
+  const handleSaveBusiness = () => {
+    const fd = new FormData();
+    fd.append("businessAddress", businessAddress);
+    fd.append("businessEmail", businessEmail);
+    fd.append("website", website);
+    fd.append("timezone", timezone);
+    updateMutation.mutate(fd);
+  };
+
+  const displayImage = previewImage || profile?.profileImage?.url || "";
 
   return (
     <div>
@@ -37,7 +97,7 @@ export default function SettingsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Main Settings */}
           <div className="lg:col-span-2">
-            <Tabs defaultValue="profile">
+            <Tabs defaultValue="profile-information">
               <TabsList className="mb-5">
                 {["Profile Information", "Security", "Notifications", "Preferences"].map(t => (
                   <TabsTrigger key={t} value={t.toLowerCase().replace(" ", "-")} className="text-xs">{t}</TabsTrigger>
@@ -55,11 +115,23 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-4">
                       <div className="relative">
                         <Avatar className="w-16 h-16">
+                          {displayImage ? <AvatarImage src={displayImage} alt={name} /> : null}
                           <AvatarFallback className="text-lg">{getInitials(name)}</AvatarFallback>
                         </Avatar>
-                        <button className="absolute bottom-0 right-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center hover:bg-blue-700">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="absolute bottom-0 right-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center hover:bg-blue-700"
+                        >
                           <Camera className="w-3 h-3 text-white" />
                         </button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          onChange={handleImageChange}
+                        />
                       </div>
                       <div className="text-xs text-gray-400">
                         <p>Upload a new photo</p>
@@ -97,7 +169,7 @@ export default function SettingsPage() {
                         className="w-full text-sm bg-[#0d1526] border border-[#2a3547] rounded-lg px-3 py-2 text-gray-200 resize-none h-20 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                     </div>
 
-                    <Button onClick={() => toast.success("Profile saved!")}><Save className="w-4 h-4" />Save Changes</Button>
+                    <Button onClick={handleSaveProfile} disabled={updateMutation.isPending}><Save className="w-4 h-4" />{updateMutation.isPending ? "Saving..." : "Save Changes"}</Button>
                   </CardContent>
                 </Card>
 
@@ -125,7 +197,7 @@ export default function SettingsPage() {
                         <Input value={timezone} onChange={e => setTimezone(e.target.value)} />
                       </div>
                     </div>
-                    <Button onClick={() => toast.success("Business info saved!")}><Save className="w-4 h-4" />Save Changes</Button>
+                    <Button onClick={handleSaveBusiness} disabled={updateMutation.isPending}><Save className="w-4 h-4" />{updateMutation.isPending ? "Saving..." : "Save Changes"}</Button>
                   </CardContent>
                 </Card>
               </TabsContent>

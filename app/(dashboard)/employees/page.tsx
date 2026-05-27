@@ -983,6 +983,7 @@ export default function EmployeesPage() {
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-300">Full name</label>
                 <Input
+                  autoComplete="off"
                   value={form.name}
                   onChange={(event) => setForm({ ...form, name: event.target.value })}
                   placeholder="Sarah Taylor"
@@ -991,6 +992,7 @@ export default function EmployeesPage() {
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-300">Role / Position</label>
                 <Input
+                  autoComplete="off"
                   value={form.position}
                   onChange={(event) => setForm({ ...form, position: event.target.value })}
                   placeholder="Barber"
@@ -1002,6 +1004,7 @@ export default function EmployeesPage() {
               <label className="text-xs font-medium text-gray-300">Email</label>
               <Input
                 type="email"
+                autoComplete="off"
                 value={form.email}
                 onChange={(event) => setForm({ ...form, email: event.target.value })}
                 placeholder="sarah@fademasters.com"
@@ -1012,6 +1015,8 @@ export default function EmployeesPage() {
               <div className="space-y-1">
                 <label className="text-xs font-medium text-gray-300">Phone</label>
                 <Input
+                  type="tel"
+                  autoComplete="off"
                   value={form.phoneNumber}
                   onChange={(event) =>
                     setForm({ ...form, phoneNumber: event.target.value })
@@ -1024,6 +1029,7 @@ export default function EmployeesPage() {
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     value={form.password}
                     onChange={(event) => setForm({ ...form, password: event.target.value })}
                     placeholder="Min. 6 characters"
@@ -1073,6 +1079,7 @@ export default function EmployeesPage() {
                 Days off <span className="text-gray-500">(comma separated)</span>
               </label>
               <Input
+                autoComplete="off"
                 value={form.daysOff}
                 onChange={(event) => setForm({ ...form, daysOff: event.target.value })}
                 placeholder="sunday, saturday"
