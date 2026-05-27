@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useMemo } from "react";
@@ -143,7 +143,7 @@ export default function KoraGoPage() {
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-9 h-9 rounded-lg ${item.color} flex items-center justify-center flex-shrink-0`}
+                        className={`w-9 h-9 rounded-lg ${item.color} flex items-center justify-center shrink-0`}
                       >
                         <item.icon className="w-4 h-4 text-white" />
                       </div>
@@ -193,7 +193,7 @@ export default function KoraGoPage() {
                             </p>
                             <p className="text-[10px] text-gray-500">
                               {entry.role || entry.old_employee_id?.position || "Employee"}{" "}
-                              {entry.appVersion ? `• app ${entry.appVersion}` : ""}
+                              {entry.appVersion ? `â€¢ app ${entry.appVersion}` : ""}
                             </p>
                           </div>
                         </div>
@@ -286,7 +286,7 @@ export default function KoraGoPage() {
                         </p>
                         <p className="text-[10px] text-gray-500">
                           {activity.employee?.position || "Employee"}{" "}
-                          {activity.appVersion ? `• version ${activity.appVersion}` : ""}
+                          {activity.appVersion ? `â€¢ version ${activity.appVersion}` : ""}
                         </p>
                       </div>
                       <div className="text-right">
@@ -389,3 +389,4 @@ export default function KoraGoPage() {
     </div>
   );
 }
+

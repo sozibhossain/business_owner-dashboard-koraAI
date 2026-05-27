@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useRef, useEffect } from "react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ interface Message { id: string; role: "user" | "assistant"; content: string; tim
 
 const initialMessages: Message[] = [{
   id: "1", role: "assistant",
-  content: "Hi Sarah! 👋\n\nI'm Kora, your AI assistant. I can help you manage your business, answer questions, automate tasks and provide insights.",
+  content: "Hi Sarah! ðŸ‘‹\n\nI'm Kora, your AI assistant. I can help you manage your business, answer questions, automate tasks and provide insights.",
   time: "Now",
 }];
 
@@ -25,10 +25,10 @@ const suggestions = [
 ];
 
 const smartSuggestions = [
-  { icon: "📄", title: "3 invoices are overdue.", desc: "Review and send reminders.", color: "bg-amber-600/20" },
-  { icon: "👥", title: "5 new leads need follow-up.", desc: "Reach out to convert them.", color: "bg-blue-600/20" },
-  { icon: "📈", title: "Your revenue is up 18% this month.", desc: "View detailed analytics.", color: "bg-emerald-600/20" },
-  { icon: "📅", title: "You have 2 upcoming appointments.", desc: "Check your calendar.", color: "bg-purple-600/20" },
+  { icon: "ðŸ“„", title: "3 invoices are overdue.", desc: "Review and send reminders.", color: "bg-amber-600/20" },
+  { icon: "ðŸ‘¥", title: "5 new leads need follow-up.", desc: "Reach out to convert them.", color: "bg-blue-600/20" },
+  { icon: "ðŸ“ˆ", title: "Your revenue is up 18% this month.", desc: "View detailed analytics.", color: "bg-emerald-600/20" },
+  { icon: "ðŸ“…", title: "You have 2 upcoming appointments.", desc: "Check your calendar.", color: "bg-purple-600/20" },
 ];
 
 export default function AssistantPage() {
@@ -75,11 +75,11 @@ export default function AssistantPage() {
               {messages.length <= 2 && (
                 <div className="p-5 border-b border-[#1e2d40]">
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-blue-600/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-4xl">🤖</span>
+                    <div className="w-16 h-16 rounded-full bg-blue-600/10 flex items-center justify-center shrink-0">
+                      <span className="text-4xl">ðŸ¤–</span>
                     </div>
                     <div>
-                      <p className="text-lg font-semibold text-white">Hi Sarah! 👋</p>
+                      <p className="text-lg font-semibold text-white">Hi Sarah! ðŸ‘‹</p>
                       <p className="text-sm text-gray-400 mt-1">I'm Kora, your AI assistant. I can help you manage your business, answer questions, automate tasks and provide insights.</p>
                       <div className="relative mt-3">
                         <Input placeholder="Ask me anything about your business..." className="pr-10" onKeyDown={e => e.key === "Enter" && handleSend()} onChange={e => setInput(e.target.value)} value={input} />
@@ -105,7 +105,7 @@ export default function AssistantPage() {
                 {messages.slice(messages.length > 2 ? 0 : 1).map((msg) => (
                   <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "items-start gap-3"}`}>
                     {msg.role === "assistant" && (
-                      <div className="w-7 h-7 rounded-full bg-blue-600/20 flex items-center justify-center flex-shrink-0 mt-0.5 text-sm">🤖</div>
+                      <div className="w-7 h-7 rounded-full bg-blue-600/20 flex items-center justify-center shrink-0 mt-0.5 text-sm">ðŸ¤–</div>
                     )}
                     <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${msg.role === "user" ? "bg-blue-600 text-white" : "bg-[#1e2d40] text-gray-200"}`}>
                       <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
@@ -115,7 +115,7 @@ export default function AssistantPage() {
                 ))}
                 {sendMutation.isPending && (
                   <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-blue-600/20 flex items-center justify-center text-sm">🤖</div>
+                    <div className="w-7 h-7 rounded-full bg-blue-600/20 flex items-center justify-center text-sm">ðŸ¤–</div>
                     <div className="bg-[#1e2d40] rounded-2xl px-4 py-3">
                       <div className="flex gap-1">{[0,1,2].map(i => <div key={i} className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: `${i*150}ms` }} />)}</div>
                     </div>
@@ -154,7 +154,7 @@ export default function AssistantPage() {
             <Card className="border-blue-600/20">
               <CardContent className="pt-4 text-center">
                 <div className="w-16 h-16 rounded-full bg-blue-600/10 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-4xl">🤖</span>
+                  <span className="text-4xl">ðŸ¤–</span>
                 </div>
                 <p className="font-medium text-white">Kora is active</p>
                 <span className="inline-flex items-center gap-1 text-xs text-emerald-400 mt-1">
@@ -171,14 +171,14 @@ export default function AssistantPage() {
                 {smartSuggestions.map(s => (
                   <button key={s.title} onClick={() => setInput(s.title)}
                     className="w-full flex items-start gap-3 py-2 hover:bg-[#1e2d40] rounded-lg px-2 transition-colors text-left mb-1">
-                    <div className={`w-7 h-7 rounded-lg ${s.color} flex items-center justify-center flex-shrink-0`}>
+                    <div className={`w-7 h-7 rounded-lg ${s.color} flex items-center justify-center shrink-0`}>
                       <span className="text-sm">{s.icon}</span>
                     </div>
                     <div>
                       <p className="text-xs font-medium text-gray-200">{s.title}</p>
                       <p className="text-[10px] text-gray-400">{s.desc}</p>
                     </div>
-                    <span className="text-gray-500 ml-auto">›</span>
+                    <span className="text-gray-500 ml-auto">â€º</span>
                   </button>
                 ))}
               </CardContent>
@@ -188,7 +188,7 @@ export default function AssistantPage() {
             <Card>
               <CardContent className="pt-4">
                 <p className="text-sm font-medium text-gray-200 mb-2">Learn more about Kora</p>
-                <button className="text-xs text-blue-400 hover:text-blue-300">Explore all capabilities →</button>
+                <button className="text-xs text-blue-400 hover:text-blue-300">Explore all capabilities â†’</button>
               </CardContent>
             </Card>
           </div>
@@ -197,3 +197,4 @@ export default function AssistantPage() {
     </div>
   );
 }
+

@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { getInitials } from "@/lib/utils";
 import { toast } from "sonner";
-import { Save, Camera } from "lucide-react";
+import { Save, Camera, Shield, Bell, Sliders, CheckCircle2 } from "lucide-react";
 
 export default function SettingsPage() {
   const [name, setName] = useState("");
@@ -30,14 +31,14 @@ export default function SettingsPage() {
 
   const { data: profile } = useQuery({
     queryKey: ["profile"],
-    queryFn: () => userApi.getProfile().then(r => r.data.data),
+    queryFn: () => userApi.getProfile().then((r) => r.data.data),
   });
 
   useEffect(() => {
     if (!profile) return;
     setName(profile.name || "");
     setEmail(profile.email || "");
-    setPhone(profile.phone || "");
+    setPhone(profile.phone || profile.phoneNumber || "");
     setJobTitle(profile.jobTitle || "");
     setBusinessName(profile.businessName || "");
     setBio(profile.bio || "");
@@ -53,6 +54,7 @@ export default function SettingsPage() {
       toast.success("Profile saved!");
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["user-profile-dashboard"] });
     },
     onError: () => toast.error("Failed to save profile."),
   });
@@ -89,39 +91,64 @@ export default function SettingsPage() {
   };
 
   const displayImage = previewImage || profile?.profileImage?.url || "";
+  const memberSince = profile?.createdAt
+    ? new Date(profile.createdAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "—";
 
   return (
     <div>
-      <Header title="Profile" subtitle="Manage your personal information and account preferences." />
+      <Header
+        title="Profile"
+        subtitle="Manage your personal information and account preferences."
+      />
       <div className="p-3 sm:p-4 lg:p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Main Settings */}
+          {/* Main content */}
           <div className="lg:col-span-2">
             <Tabs defaultValue="profile-information">
-              <TabsList className="mb-5">
-                {["Profile Information", "Security", "Notifications", "Preferences"].map(t => (
-                  <TabsTrigger key={t} value={t.toLowerCase().replace(" ", "-")} className="text-xs">{t}</TabsTrigger>
-                ))}
+              <TabsList className="mb-5 w-full sm:w-auto">
+                <TabsTrigger value="profile-information" className="text-xs gap-1.5">
+                  Profile
+                </TabsTrigger>
+                <TabsTrigger value="security" className="text-xs gap-1.5">
+                  <Shield className="w-3 h-3" /> Security
+                </TabsTrigger>
+                <TabsTrigger value="notifications" className="text-xs gap-1.5">
+                  <Bell className="w-3 h-3" /> Notifications
+                </TabsTrigger>
+                <TabsTrigger value="preferences" className="text-xs gap-1.5">
+                  <Sliders className="w-3 h-3" /> Preferences
+                </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="profile-information">
+              <TabsContent value="profile-information" className="space-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-sm">Profile Information</CardTitle>
-                    <p className="text-xs text-gray-500">Update your personal details and how others see you.</p>
+                    <p className="text-xs text-gray-500">
+                      Update your personal details and how others see you.
+                    </p>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Avatar */}
+                  <CardContent className="space-y-5">
+                    {/* Avatar upload */}
                     <div className="flex items-center gap-4">
                       <div className="relative">
                         <Avatar className="w-16 h-16">
-                          {displayImage ? <AvatarImage src={displayImage} alt={name} /> : null}
-                          <AvatarFallback className="text-lg">{getInitials(name)}</AvatarFallback>
+                          {displayImage ? (
+                            <AvatarImage src={displayImage} alt={name} />
+                          ) : null}
+                          <AvatarFallback className="text-lg">
+                            {getInitials(name)}
+                          </AvatarFallback>
                         </Avatar>
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="absolute bottom-0 right-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center hover:bg-blue-700"
+                          className="absolute bottom-0 right-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors"
                         >
                           <Camera className="w-3 h-3 text-white" />
                         </button>
@@ -133,99 +160,181 @@ export default function SettingsPage() {
                           onChange={handleImageChange}
                         />
                       </div>
-                      <div className="text-xs text-gray-400">
-                        <p>Upload a new photo</p>
-                        <p className="text-[10px] text-gray-500">JPG, PNG up to 5MB</p>
+                      <div>
+                        <p className="text-sm font-medium text-gray-200">{name || "Your Name"}</p>
+                        <p className="text-xs text-gray-400">{email}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">
+                          Click the camera icon to upload a new photo
+                        </p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label>Full Name</Label>
-                        <Input value={name} onChange={e => setName(e.target.value)} />
+                        <Input value={name} onChange={(e) => setName(e.target.value)} />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Email Address</Label>
-                        <Input type="email" value={email} onChange={e => setEmail(e.target.value)} />
+                        <Input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                        />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Phone Number</Label>
-                        <Input value={phone} onChange={e => setPhone(e.target.value)} />
+                        <Input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                        />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Job Title</Label>
-                        <Input value={jobTitle} onChange={e => setJobTitle(e.target.value)} />
+                        <Input
+                          value={jobTitle}
+                          onChange={(e) => setJobTitle(e.target.value)}
+                        />
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
                       <Label>Business Name</Label>
-                      <Input value={businessName} onChange={e => setBusinessName(e.target.value)} />
+                      <Input
+                        value={businessName}
+                        onChange={(e) => setBusinessName(e.target.value)}
+                      />
                     </div>
 
                     <div className="space-y-1.5">
                       <Label>Bio</Label>
-                      <textarea value={bio} onChange={e => setBio(e.target.value)}
-                        className="w-full text-sm bg-[#0d1526] border border-[#2a3547] rounded-lg px-3 py-2 text-gray-200 resize-none h-20 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                      <textarea
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        placeholder="Tell others about yourself..."
+                        className="w-full text-sm bg-[#0d1526] border border-[#2a3547] rounded-lg px-3 py-2 text-gray-200 resize-none h-20 focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-600"
+                      />
                     </div>
 
-                    <Button onClick={handleSaveProfile} disabled={updateMutation.isPending}><Save className="w-4 h-4" />{updateMutation.isPending ? "Saving..." : "Save Changes"}</Button>
+                    <Button
+                      onClick={handleSaveProfile}
+                      disabled={updateMutation.isPending}
+                      className="gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                    </Button>
                   </CardContent>
                 </Card>
 
-                <Card className="mt-4">
+                <Card>
                   <CardHeader>
                     <CardTitle className="text-sm">Business Information</CardTitle>
-                    <p className="text-xs text-gray-500">Update your business details and address.</p>
+                    <p className="text-xs text-gray-500">
+                      Update your business details and address.
+                    </p>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label>Business Address</Label>
-                        <Input value={businessAddress} onChange={e => setBusinessAddress(e.target.value)} />
+                        <Input
+                          value={businessAddress}
+                          onChange={(e) => setBusinessAddress(e.target.value)}
+                        />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Business Email</Label>
-                        <Input value={businessEmail} onChange={e => setBusinessEmail(e.target.value)} />
+                        <Input
+                          value={businessEmail}
+                          onChange={(e) => setBusinessEmail(e.target.value)}
+                        />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Website</Label>
-                        <Input value={website} onChange={e => setWebsite(e.target.value)} />
+                        <Input
+                          value={website}
+                          onChange={(e) => setWebsite(e.target.value)}
+                        />
                       </div>
                       <div className="space-y-1.5">
                         <Label>Timezone</Label>
-                        <Input value={timezone} onChange={e => setTimezone(e.target.value)} />
+                        <Input
+                          value={timezone}
+                          onChange={(e) => setTimezone(e.target.value)}
+                          placeholder="e.g. Europe/Berlin"
+                        />
                       </div>
                     </div>
-                    <Button onClick={handleSaveBusiness} disabled={updateMutation.isPending}><Save className="w-4 h-4" />{updateMutation.isPending ? "Saving..." : "Save Changes"}</Button>
+                    <Button
+                      onClick={handleSaveBusiness}
+                      disabled={updateMutation.isPending}
+                      className="gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                    </Button>
                   </CardContent>
                 </Card>
               </TabsContent>
 
               <TabsContent value="security">
                 <Card>
-                  <CardHeader><CardTitle className="text-sm">Change Password</CardTitle></CardHeader>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Change Password</CardTitle>
+                    <p className="text-xs text-gray-500">
+                      Keep your account secure with a strong password.
+                    </p>
+                  </CardHeader>
                   <CardContent className="space-y-4">
-                    {["Current Password", "New Password", "Confirm Password"].map(f => (
+                    {["Current Password", "New Password", "Confirm Password"].map((f) => (
                       <div key={f} className="space-y-1.5">
                         <Label>{f}</Label>
-                        <Input type="password" placeholder={`Enter ${f.toLowerCase()}`} />
+                        <Input
+                          type="password"
+                          placeholder={`Enter ${f.toLowerCase()}`}
+                        />
                       </div>
                     ))}
-                    <Button onClick={() => toast.success("Password changed!")}><Save className="w-4 h-4" />Update Password</Button>
+                    <Button onClick={() => toast.success("Password changed!")} className="gap-2">
+                      <Save className="w-4 h-4" /> Update Password
+                    </Button>
                   </CardContent>
                 </Card>
               </TabsContent>
 
               <TabsContent value="notifications">
                 <Card>
-                  <CardHeader><CardTitle className="text-sm">Notification Preferences</CardTitle></CardHeader>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Notification Preferences</CardTitle>
+                    <p className="text-xs text-gray-500">
+                      Choose what notifications you want to receive.
+                    </p>
+                  </CardHeader>
                   <CardContent>
-                    {["New appointments", "Cancellations", "Employee requests", "Invoice paid", "System updates"].map((n, i) => (
-                      <div key={n} className="flex items-center justify-between py-3 border-b border-[#1e2d40] last:border-0">
+                    {[
+                      "New appointments",
+                      "Cancellations",
+                      "Employee requests",
+                      "Invoice paid",
+                      "System updates",
+                    ].map((n, i) => (
+                      <div
+                        key={n}
+                        className="flex items-center justify-between py-3 border-b border-[#1e2d40] last:border-0"
+                      >
                         <p className="text-sm text-gray-200">{n}</p>
-                        <button className={`w-10 h-5 rounded-full transition-colors ${i < 3 ? "bg-blue-600" : "bg-[#2a3547]"}`}>
-                          <div className={`w-4 h-4 bg-white rounded-full mx-0.5 transition-transform ${i < 3 ? "translate-x-5" : "translate-x-0"}`} />
+                        <button
+                          className={`w-10 h-5 rounded-full transition-colors ${
+                            i < 3 ? "bg-blue-600" : "bg-[#2a3547]"
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 bg-white rounded-full mx-0.5 transition-transform ${
+                              i < 3 ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
                         </button>
                       </div>
                     ))}
@@ -235,73 +344,116 @@ export default function SettingsPage() {
 
               <TabsContent value="preferences">
                 <Card>
-                  <CardHeader><CardTitle className="text-sm">Preferences</CardTitle></CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {[{ label: "Language", value: "English" }, { label: "Currency", value: "EUR (€)" }, { label: "Date Format", value: "DD/MM/YYYY" }, { label: "Time Format", value: "24-hour" }].map(p => (
-                        <div key={p.label} className="space-y-1.5">
-                          <Label>{p.label}</Label>
-                          <Input defaultValue={p.value} />
-                        </div>
-                      ))}
-                      <Button onClick={() => toast.success("Preferences saved!")}><Save className="w-4 h-4" />Save Preferences</Button>
-                    </div>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Preferences</CardTitle>
+                    <p className="text-xs text-gray-500">
+                      Customize how the dashboard looks and behaves.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {[
+                      { label: "Language", value: "English" },
+                      { label: "Currency", value: "EUR (€)" },
+                      { label: "Date Format", value: "DD/MM/YYYY" },
+                      { label: "Time Format", value: "24-hour" },
+                    ].map((p) => (
+                      <div key={p.label} className="space-y-1.5">
+                        <Label>{p.label}</Label>
+                        <Input defaultValue={p.value} />
+                      </div>
+                    ))}
+                    <Button
+                      onClick={() => toast.success("Preferences saved!")}
+                      className="gap-2"
+                    >
+                      <Save className="w-4 h-4" /> Save Preferences
+                    </Button>
                   </CardContent>
                 </Card>
               </TabsContent>
             </Tabs>
           </div>
 
-          {/* Right: Account Overview */}
+          {/* Right sidebar */}
           <div className="space-y-4">
+            {/* Account overview */}
             <Card>
-              <CardHeader><CardTitle className="text-sm">Account Overview</CardTitle><p className="text-xs text-gray-500">Your account details at a glance.</p></CardHeader>
-              <CardContent>
+              <CardHeader>
+                <CardTitle className="text-sm">Account Overview</CardTitle>
+                <p className="text-xs text-gray-500">Your account details at a glance.</p>
+              </CardHeader>
+              <CardContent className="space-y-0">
                 {[
                   { label: "Account Type", value: "Business" },
                   { label: "Plan", value: "Pro Plan" },
-                  { label: "Member Since", value: "Jan 15, 2024" },
+                  { label: "Member Since", value: memberSince },
                   { label: "Account Status", value: "Active" },
-                ].map(d => (
-                  <div key={d.label} className="flex justify-between py-1.5 border-b border-[#1e2d40] last:border-0 text-xs">
-                    <span className="text-gray-400 flex items-center gap-1.5">
-                      <span className="w-1 h-1 rounded-full bg-gray-400" />{d.label}
+                ].map((d) => (
+                  <div
+                    key={d.label}
+                    className="flex justify-between py-2 border-b border-[#1e2d40] last:border-0 text-xs"
+                  >
+                    <span className="text-gray-400">{d.label}</span>
+                    <span
+                      className={`flex items-center gap-1 ${
+                        d.label === "Account Status" ? "text-emerald-400" : "text-gray-200"
+                      }`}
+                    >
+                      {d.label === "Account Status" && (
+                        <CheckCircle2 className="w-3 h-3" />
+                      )}
+                      {d.value}
                     </span>
-                    <span className={`${d.label === "Account Status" ? "text-emerald-400" : "text-gray-200"}`}>{d.value}</span>
                   </div>
                 ))}
               </CardContent>
             </Card>
 
+            {/* Plan usage */}
             <Card>
-              <CardHeader><CardTitle className="text-sm">Plan Usage</CardTitle><p className="text-xs text-gray-500">Your usage this month</p></CardHeader>
-              <CardContent>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">Plan Usage</CardTitle>
+                  <Badge variant="secondary" className="text-[9px]">Pro</Badge>
+                </div>
+                <p className="text-xs text-gray-500">Your usage this month</p>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 {[
                   { label: "AI Messages", value: 2450, max: 5000, pct: 49 },
                   { label: "Appointments", value: 38, max: 100, pct: 38 },
                   { label: "Team Members", value: 6, max: 10, pct: 60 },
                   { label: "Storage", value: "2.4 GB", max: "10 GB", pct: 24 },
-                ].map(u => (
-                  <div key={u.label} className="mb-3">
+                ].map((u) => (
+                  <div key={u.label}>
                     <div className="flex justify-between text-xs mb-1">
                       <span className="text-gray-400">{u.label}</span>
-                      <span className="text-gray-300">{u.value} / {u.max}</span>
+                      <span className="text-gray-300">
+                        {u.value} / {u.max}
+                      </span>
                     </div>
-                    <div className="h-1.5 bg-[#1e2d40] rounded-full">
-                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${u.pct}%` }} />
+                    <div className="h-1.5 bg-[#1e2d40] rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${u.pct >= 80 ? "bg-amber-500" : "bg-blue-500"}`}
+                        style={{ width: `${u.pct}%` }}
+                      />
                     </div>
-                    <p className="text-[10px] text-gray-500 mt-0.5">{u.pct}%</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{u.pct}% used</p>
                   </div>
                 ))}
-                <Button variant="outline" size="sm" className="w-full text-xs mt-2">View Subscription</Button>
+                <Button variant="outline" size="sm" className="w-full text-xs mt-1">
+                  View Subscription
+                </Button>
               </CardContent>
             </Card>
 
-            <p className="text-xs text-gray-500 text-center">© 2025 KoraAI. All rights reserved.</p>
-            <div className="flex justify-center gap-3 text-xs text-gray-500">
-              <button className="hover:text-gray-300">Privacy Policy</button>
-              <button className="hover:text-gray-300">Terms of Service</button>
-              <button className="hover:text-gray-300">Help Center</button>
+            <div className="text-center space-y-2">
+              <p className="text-xs text-gray-500">© 2025 KoraAI. All rights reserved.</p>
+              <div className="flex justify-center gap-3 text-xs text-gray-500">
+                <button className="hover:text-gray-300 transition-colors">Privacy</button>
+                <button className="hover:text-gray-300 transition-colors">Terms</button>
+                <button className="hover:text-gray-300 transition-colors">Help</button>
+              </div>
             </div>
           </div>
         </div>
