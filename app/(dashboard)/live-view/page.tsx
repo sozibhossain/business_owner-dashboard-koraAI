@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useMemo } from "react";
@@ -137,7 +137,7 @@ export default function LiveViewPage() {
                   <CardContent className="pt-4">
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-9 h-9 rounded-lg ${item.color} flex items-center justify-center flex-shrink-0`}
+                        className={`w-9 h-9 rounded-lg ${item.color} flex items-center justify-center shrink-0`}
                       >
                         <item.icon className="w-4 h-4 text-white" />
                       </div>
@@ -186,7 +186,7 @@ export default function LiveViewPage() {
                           {activity.description || "No description"}
                         </p>
                         <p className="text-[10px] text-gray-500 mt-1">
-                          {activity.user_id?.name || "System"} • {timeAgo(activity.timestamp)}
+                          {activity.user_id?.name || "System"} â€¢ {timeAgo(activity.timestamp)}
                         </p>
                       </div>
                     </div>
@@ -258,7 +258,7 @@ export default function LiveViewPage() {
                           {getAppointmentGuestName(appointment)}
                         </p>
                         <p className="text-[10px] text-gray-500">
-                          {appointment.status} • {appointment.endTime}
+                          {appointment.status} â€¢ {appointment.endTime}
                         </p>
                       </div>
                       <Avatar className="w-6 h-6">
@@ -334,3 +334,4 @@ export default function LiveViewPage() {
     </div>
   );
 }
+
