@@ -1,7 +1,8 @@
 "use client";
 import { Menu, Search } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useQuery } from "@tanstack/react-query";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,6 +16,7 @@ import {
 import Link from "next/link";
 import { useMobileNav } from "@/components/layout/mobile-nav-context";
 import { NotificationBell } from "@/components/notification-bell";
+import { userApi } from "@/lib/api";
 
 interface HeaderProps {
   title: string;
@@ -25,6 +27,27 @@ interface HeaderProps {
 export function Header({ title, subtitle, action }: HeaderProps) {
   const { data: session } = useSession();
   const { setIsOpen } = useMobileNav();
+
+  const { data: profileResponse } = useQuery({
+    queryKey: ["user-profile"],
+    queryFn: () => userApi.getProfile().then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const profileData = profileResponse?.data;
+  const sessionUser = session?.user as
+    | { name?: string; role?: string; profileImage?: { url?: string } }
+    | undefined;
+
+  const displayName = profileData?.name || sessionUser?.name || "Business Owner";
+  const displayImage = profileData?.profileImage?.url || sessionUser?.profileImage?.url || "";
+  const displayRole = profileData?.role || sessionUser?.role || "business_owner";
+  const roleLabel =
+    displayRole === "business_owner"
+      ? "Business Owner"
+      : displayRole === "employee"
+        ? "Employee"
+        : String(displayRole).replace(/_/g, " ");
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-[#1e2d40] bg-[#070f1c] px-3 sm:gap-4 sm:px-6">
@@ -65,15 +88,18 @@ export function Header({ title, subtitle, action }: HeaderProps) {
         <DropdownMenuTrigger asChild>
           <button className="flex shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[#1e2d40]">
             <Avatar className="h-8 w-8">
+              {displayImage ? (
+                <AvatarImage src={displayImage} alt={displayName} />
+              ) : null}
               <AvatarFallback className="text-xs">
-                {getInitials(session?.user?.name || "AB")}
+                {getInitials(displayName)}
               </AvatarFallback>
             </Avatar>
             <div className="hidden text-left sm:block">
               <p className="max-w-20 truncate text-xs font-medium text-gray-200">
-                {session?.user?.name || "Alex Barber"}
+                {displayName}
               </p>
-              <p className="text-[10px] text-gray-500">Owner</p>
+              <p className="text-[10px] capitalize text-gray-500">{roleLabel}</p>
             </div>
             <span className="hidden text-xs text-gray-500 sm:block">▾</span>
           </button>

@@ -87,9 +87,30 @@ export const inboxApi = {
   search: (q: string) => api.get("/inbox/search", { params: { q } }),
   createGroup: (data: object) => api.post("/inbox/group", data),
   markRead: (chatId: string) => api.patch(`/inbox/${chatId}/read`),
-  sendMessage: (data: { recipientId: string; content: string }) => api.post("/inbox", data),
+  sendMessage: (data: FormData | { recipientId: string; content?: string }) =>
+    data instanceof FormData
+      ? api.post("/inbox", data, { headers: { "Content-Type": "multipart/form-data" } })
+      : api.post("/inbox", data),
   deleteMessage: (conversationId: string, messageId: string) => api.delete(`/inbox/${conversationId}/messages/${messageId}`),
+  editMessage: (conversationId: string, messageId: string, data: { content: string }) =>
+    api.patch(`/inbox/${conversationId}/messages/${messageId}`, data),
+  deleteChat: (id: string) => api.delete(`/inbox/${id}`),
   getRecipients: (params?: { q?: string }) => api.get("/inbox/recipients", { params }),
+};
+
+export const mailApi = {
+  getAll: (params?: object) => api.get("/mail", { params }),
+  getById: (id: string) => api.get(`/mail/${id}`),
+  create: (data: FormData) =>
+    api.post("/mail", data, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  update: (id: string, data: FormData) =>
+    api.put(`/mail/${id}`, data, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  toggleStar: (id: string) => api.put(`/mail/${id}/star`),
+  remove: (id: string) => api.delete(`/mail/${id}`),
 };
 
 export const koraAssistantApi = {
