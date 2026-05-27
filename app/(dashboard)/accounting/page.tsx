@@ -304,6 +304,7 @@ export default function AccountingPage() {
                     <p className="text-sm text-gray-500">No invoices found for this filter.</p>
                   </div>
                 ) : (
+                  <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-[#1e2d40]">
@@ -367,6 +368,7 @@ export default function AccountingPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 )}
 
                 <div className="flex items-center justify-between px-4 py-3 border-t border-[#1e2d40]">

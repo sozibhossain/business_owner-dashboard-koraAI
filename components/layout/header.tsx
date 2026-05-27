@@ -69,7 +69,7 @@ export function Header({ title, subtitle, action }: HeaderProps) {
 
       {action ? <div className="shrink-0">{action}</div> : null}
 
-      <div className="hidden w-48 items-center md:flex">
+      <div className="hidden w-48 items-center lg:flex">
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
           <Input

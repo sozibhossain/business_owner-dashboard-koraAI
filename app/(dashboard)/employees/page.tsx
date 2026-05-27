@@ -446,7 +446,7 @@ export default function EmployeesPage() {
             </div>
 
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="h-10 w-32">
+              <SelectTrigger className="h-10 w-full sm:w-32">
                 <SelectValue placeholder="All Roles" />
               </SelectTrigger>
               <SelectContent>
@@ -459,7 +459,7 @@ export default function EmployeesPage() {
             </Select>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-10 w-32">
+              <SelectTrigger className="h-10 w-full sm:w-32">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
@@ -834,7 +834,7 @@ export default function EmployeesPage() {
 
                       <div>
                         <p className="mb-1 text-xs font-medium text-gray-300">Quick Actions</p>
-                        <div className="grid grid-cols-5 gap-1.5">
+                        <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
                           {[
                             { label: "Edit Profile", icon: Pencil },
                             { label: "Set Schedule", icon: Calendar },
