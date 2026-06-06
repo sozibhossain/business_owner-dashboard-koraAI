@@ -22,6 +22,27 @@ const TYPE_ICON: Record<string, string> = {
   system: "🔔",
 };
 
+// Backend notification links (e.g. /work/leave/:id, /appointment/:id) aren't all
+// valid dashboard routes — map them to the right page in this dashboard.
+const ROUTE_BY_TYPE: Record<string, string> = {
+  leave: "/requests",
+  request: "/requests",
+  appointment: "/calendar",
+  message: "/inbox",
+  mail: "/inbox",
+  call: "/live-view",
+};
+
+const resolveNotificationLink = (notification: any): string | null => {
+  const link = String(notification?.link || "");
+  if (link.startsWith("/work/leave") || link.startsWith("/requests")) return "/requests";
+  if (link.startsWith("/appointment")) return "/calendar";
+  if (link.startsWith("/inbox") || link.startsWith("/mail")) return "/inbox";
+  if (ROUTE_BY_TYPE[notification?.type]) return ROUTE_BY_TYPE[notification.type];
+  if (link.startsWith("/")) return link;
+  return null;
+};
+
 export function NotificationBell() {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
@@ -96,9 +117,7 @@ export function NotificationBell() {
     if (!notification.isRead) {
       markReadMutation.mutate(notification._id);
     }
-    if (notification.link) {
-      setIsOpen(false);
-    }
+    setIsOpen(false);
   };
 
   const badgeLabel = unreadCount > 99 ? "99+" : String(unreadCount);
@@ -214,11 +233,12 @@ export function NotificationBell() {
                   </div>
                 );
 
-                if (notification.link) {
+                const href = resolveNotificationLink(notification);
+                if (href) {
                   return (
                     <Link
                       key={notification._id}
-                      href={notification.link}
+                      href={href}
                       onClick={() => handleItemClick(notification)}
                       className="block"
                     >

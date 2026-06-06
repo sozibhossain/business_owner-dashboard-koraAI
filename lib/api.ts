@@ -6,7 +6,6 @@ export const authApi = {
   verifyResetOtp: (data: { email: string; otp: string }) => api.post("/auth/verify-reset-otp", data),
   resetPassword: (data: object) => api.post("/auth/reset-password", data),
   logout: () => api.post("/auth/logout"),
-  addEmployee: (data: object) => api.post("/auth/add-employee", data),
 };
 
 export const userApi = {
@@ -17,6 +16,7 @@ export const userApi = {
 
 export const employeesApi = {
   getAll: (params?: object) => api.get("/employees", { params }),
+  getTeamAttendance: (params?: object) => api.get("/employees/attendance", { params }),
   getById: (id: string) => api.get(`/employees/${id}`),
   create: (data: object) => api.post("/employees", data),
   update: (id: string, data: object) => api.put(`/employees/${id}`, data),
@@ -59,9 +59,13 @@ export const requestsApi = {
   getAll: (params?: object) => api.get("/requests", { params }),
   getById: (id: string) => api.get(`/requests/${id}`),
   create: (data: object) => api.post("/requests", data),
-  approve: (id: string) => api.patch(`/requests/${id}/approve`),
-  reject: (id: string) => api.patch(`/requests/${id}/reject`),
+  approve: (id: string, data?: { adminNote?: string }) => api.patch(`/requests/${id}/approve`, data || {}),
+  reject: (id: string, data?: { adminNote?: string }) => api.patch(`/requests/${id}/reject`, data || {}),
   getHistory: () => api.get("/requests/history"),
+  // Employee leave requests (separate Leave model, surfaced in the same Requests dashboard)
+  getLeaves: () => api.get("/work/leave/all"),
+  leaveAction: (id: string, data: { status: "Approved" | "Rejected"; reviewNote?: string }) =>
+    api.put(`/work/leave/${id}/action`, data),
 };
 
 export const servicesApi = {
@@ -135,7 +139,9 @@ export const notificationsApi = {
 };
 
 export const liveViewApi = {
-  getActivity: () => api.get("/activity"),
+  getActivity: (params?: object) => api.get("/activity", { params }),
   getAppointmentsToday: () => api.get("/appointments", { params: { date: new Date().toISOString().split("T")[0] } }),
   getConversations: (params?: object) => api.get("/inbox", { params }),
+  getCalls: (params?: object) => api.get("/call", { params }),
+  getKoraGoLiveActivity: () => api.get("/kora-go/live-activity"),
 };
