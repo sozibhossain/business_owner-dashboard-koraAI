@@ -138,6 +138,16 @@ export const notificationsApi = {
   markAllRead: () => api.put("/notification/read-all"),
 };
 
+export const subscriptionApi = {
+  getPlans: () => api.get("/subscription/plans"),
+  getMine: () => api.get("/subscription/me"),
+  checkout: (data: { planId: string; billingCycle: "monthly" | "annual" }) =>
+    api.post("/subscription/checkout", data),
+  confirm: (sessionId: string) => api.post("/subscription/confirm", { sessionId }),
+  portal: () => api.post("/subscription/portal"),
+  cancel: () => api.post("/subscription/cancel"),
+};
+
 export const liveViewApi = {
   getActivity: (params?: object) => api.get("/activity", { params }),
   getAppointmentsToday: () => api.get("/appointments", { params: { date: new Date().toISOString().split("T")[0] } }),

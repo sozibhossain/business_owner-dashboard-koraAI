@@ -7,7 +7,7 @@ import { cn, getInitials } from "@/lib/utils";
 import {
   LayoutDashboard, Sparkles, Radio, CheckSquare, Calendar,
   Mail, Users, ClipboardList, DollarSign, Navigation, Settings,
-  LogOut, ChevronLeft, ChevronRight, X, Scissors
+  LogOut, ChevronLeft, ChevronRight, X, Scissors, CreditCard
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,6 +27,7 @@ const navItems = [
   { href: "/requests", label: "Requests", icon: ClipboardList, badgeKey: "requests" as const },
   { href: "/accounting", label: "Accounting", icon: DollarSign },
   { href: "/kora-go", label: "Kora Go", icon: Navigation },
+  { href: "/subscription", label: "Subscription", icon: CreditCard },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
