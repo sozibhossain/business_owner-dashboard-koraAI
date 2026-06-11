@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   accountingApi,
@@ -139,6 +139,14 @@ export default function BusinessOwnerDashboard() {
     Array<{ role: "user" | "assistant"; content: string }>
   >([]);
 
+  // Time-based greeting must be computed after mount, otherwise the server
+  // (UTC) and the browser (local time) can render different text and trigger a
+  // hydration mismatch (React error #418) in the production build.
+  const [greeting, setGreeting] = useState("Welcome");
+  useEffect(() => {
+    setGreeting(getGreeting());
+  }, []);
+
   const { data: profileData } = useQuery({
     queryKey: ["user-profile-dashboard"],
     queryFn: () => userApi.getProfile().then((r) => r.data.data),
@@ -166,9 +174,11 @@ export default function BusinessOwnerDashboard() {
     queryFn: () => accountingApi.getDashboard().then((r) => r.data.data),
   });
 
-  const appointments: DashboardAppointment[] = appointmentsData?.data || [];
-  const employees: any[]     = employeesData?.data || [];
-  const pendingRequests: any[] = requestsData?.data || [];
+  const appointments: DashboardAppointment[] = Array.isArray(appointmentsData?.data)
+    ? appointmentsData.data
+    : [];
+  const employees: any[] = Array.isArray(employeesData?.data) ? employeesData.data : [];
+  const pendingRequests: any[] = Array.isArray(requestsData?.data) ? requestsData.data : [];
   const activeEmployees = employees.filter((e: DashboardEmployee) =>
     ["working", "on_break"].includes(e.status || "")
   );
@@ -279,7 +289,7 @@ export default function BusinessOwnerDashboard() {
         {/* ── Greeting ── */}
         <div>
           <h2 className="text-[22px] font-bold text-white">
-            {getGreeting()}, {userName}! 👋
+            {greeting}, {userName}! 👋
           </h2>
           <p className="text-sm text-gray-400 mt-0.5">
             Here&apos;s what&apos;s happening with your business today.
