@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { formatCurrency, formatDate, getInitials } from "@/lib/utils";
+import { asArray, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -136,12 +136,12 @@ export default function AccountingPage() {
   });
 
   const dashboard = dashboardResponse?.data || {};
-  const invoices = invoicesResponse?.data || [];
+  const invoices = asArray(invoicesResponse?.data);
   const meta = invoicesResponse?.meta || {};
 
   const chartData = useMemo(
     () =>
-      (revenueResponse?.data || []).map((entry: any) => ({
+      asArray(revenueResponse?.data).map((entry: any) => ({
         label: formatRevenuePoint(entry),
         revenue: entry.revenue || 0,
       })),
@@ -150,7 +150,7 @@ export default function AccountingPage() {
 
   const breakdownMap = useMemo(
     () =>
-      (dashboard.paymentBreakdown || []).reduce(
+      asArray(dashboard.paymentBreakdown).reduce(
         (acc: Record<string, number>, item: any) => {
           acc[item._id] = item.total || 0;
           return acc;

@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getInitials, formatCurrency, formatDate } from "@/lib/utils";
+import { getInitials, formatCurrency, formatDate, asArray } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -165,13 +165,13 @@ export default function EmployeesPage() {
     refetchInterval: 30_000,
   });
 
-  const employees: any[] = useMemo(() => resp?.data || [], [resp]);
+  const employees: any[] = useMemo(() => asArray(resp?.data), [resp]);
   const summary = resp?.meta?.summary || {};
-  const todayAppts: any[] = useMemo(() => todayResp?.data || [], [todayResp]);
+  const todayAppts: any[] = useMemo(() => asArray(todayResp?.data), [todayResp]);
 
   const attendanceByUser = useMemo(() => {
     const map: Record<string, any> = {};
-    (attendanceResp?.data || []).forEach((row: any) => {
+    asArray(attendanceResp?.data).forEach((row: any) => {
       if (row.userId) map[String(row.userId)] = row.attendance;
     });
     return map;
@@ -767,7 +767,7 @@ function ProfilePanel({
 
 function ScheduleList({ schedule, todayOnly }: { schedule: any; todayOnly?: boolean }) {
   const todayKey = toDateKey(new Date());
-  let items: any[] = schedule?.schedule || [];
+  let items: any[] = asArray(schedule?.schedule);
   if (todayOnly) items = items.filter((a) => toDateKey(new Date(a.date)) === todayKey);
   items = [...items].sort((a, b) => {
     const d = new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -952,7 +952,7 @@ function AttendanceModal({ open, onOpenChange }: { open: boolean; onOpenChange: 
     enabled: open,
   });
 
-  const rows: any[] = resp?.data || [];
+  const rows: any[] = asArray(resp?.data);
 
   const stateOf = (att: any) =>
     !att || !att.checkInTime ? "absent" : att.isActiveSession ? "active" : "checked_out";

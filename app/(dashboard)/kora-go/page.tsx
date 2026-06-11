@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getInitials, timeAgo } from "@/lib/utils";
+import { asArray, getInitials, timeAgo } from "@/lib/utils";
 import { toast } from "sonner";
 import { Activity, Clock, Smartphone, Users } from "lucide-react";
 
@@ -74,11 +74,11 @@ export default function KoraGoPage() {
 
   const overview = overviewResponse?.data || {};
   const summary = overview.summary || {};
-  const accessEntries = useMemo(() => overview.employees || [], [overview.employees]);
-  const liveActivity = activityResponse?.data?.currentlyActive || [];
-  const appRequests = requestsResponse?.data || [];
+  const accessEntries = useMemo(() => asArray(overview.employees), [overview.employees]);
+  const liveActivity = asArray(activityResponse?.data?.currentlyActive);
+  const appRequests = asArray(requestsResponse?.data);
   const settings = settingsResponse?.data || {};
-  const employees = useMemo(() => employeesResponse?.data || [], [employeesResponse?.data]);
+  const employees = useMemo(() => asArray(employeesResponse?.data), [employeesResponse?.data]);
 
   const invitedUserIds = useMemo(
     () => new Set(accessEntries.map((entry: any) => String(entry.old_employee_id?._id || entry.old_employee_id))),

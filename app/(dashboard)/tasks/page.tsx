@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { getInitials } from "@/lib/utils";
+import { asArray, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -453,7 +453,7 @@ export default function TasksPage() {
       days.map((day) =>
         appointmentsApi
           .getAll({ date: toDateKey(day), limit: 200 })
-          .then((r) => ({ date: toDateKey(day), items: r.data?.data || [] }))
+          .then((r) => ({ date: toDateKey(day), items: asArray(r.data?.data) }))
           .catch(() => ({ date: toDateKey(day), items: [] as any[] }))
       )
     );
@@ -470,23 +470,23 @@ export default function TasksPage() {
 
   const { data: customers = [] } = useQuery({
     queryKey: ["tasks-customers"],
-    queryFn: () => customersApi.getAll({ limit: 100 }).then((r) => r.data?.data || []),
+    queryFn: () => customersApi.getAll({ limit: 100 }).then((r) => asArray(r.data?.data)),
   });
 
   const { data: services = [] } = useQuery({
     queryKey: ["tasks-services"],
     queryFn: () =>
-      servicesApi.getAll({ limit: 100 }).then((r) => r.data?.data || []),
+      servicesApi.getAll({ limit: 100 }).then((r) => asArray(r.data?.data)),
   });
 
   const employees: any[] = useMemo(
-    () => employeesResponse?.data || [],
+    () => asArray(employeesResponse?.data),
     [employeesResponse]
   );
 
   const appointmentsByDay = useMemo(() => {
     const map: Record<string, any[]> = {};
-    (weekResponse || []).forEach((entry: any) => {
+    asArray(weekResponse).forEach((entry: any) => {
       map[entry.date] = entry.items || [];
     });
     return map;
@@ -494,7 +494,7 @@ export default function TasksPage() {
 
   const prevAppointmentsByDay = useMemo(() => {
     const map: Record<string, any[]> = {};
-    (prevWeekResponse || []).forEach((entry: any) => {
+    asArray(prevWeekResponse).forEach((entry: any) => {
       map[entry.date] = entry.items || [];
     });
     return map;

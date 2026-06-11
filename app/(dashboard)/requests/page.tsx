@@ -8,7 +8,7 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getInitials } from "@/lib/utils";
+import { asArray, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   CalendarDays,
@@ -142,8 +142,8 @@ export default function RequestsPage() {
     queryFn: () => requestsApi.getLeaves().then((r) => r.data).catch(() => ({ data: [] })),
   });
 
-  const rawRequests: any[] = useMemo(() => resp?.data || [], [resp]);
-  const rawLeaves: any[] = useMemo(() => leaveResp?.data || [], [leaveResp]);
+  const rawRequests: any[] = useMemo(() => asArray(resp?.data), [resp]);
+  const rawLeaves: any[] = useMemo(() => asArray(leaveResp?.data), [leaveResp]);
 
   // Normalize both sources into one unified list
   const requests: any[] = useMemo(() => {

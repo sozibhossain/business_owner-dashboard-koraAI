@@ -14,7 +14,7 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials, formatCurrency } from "@/lib/utils";
+import { getInitials, formatCurrency, asArray } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   Calendar,
@@ -174,11 +174,9 @@ export default function BusinessOwnerDashboard() {
     queryFn: () => accountingApi.getDashboard().then((r) => r.data.data),
   });
 
-  const appointments: DashboardAppointment[] = Array.isArray(appointmentsData?.data)
-    ? appointmentsData.data
-    : [];
-  const employees: any[] = Array.isArray(employeesData?.data) ? employeesData.data : [];
-  const pendingRequests: any[] = Array.isArray(requestsData?.data) ? requestsData.data : [];
+  const appointments = asArray<DashboardAppointment>(appointmentsData?.data);
+  const employees = asArray<any>(employeesData?.data);
+  const pendingRequests = asArray<any>(requestsData?.data);
   const activeEmployees = employees.filter((e: DashboardEmployee) =>
     ["working", "on_break"].includes(e.status || "")
   );

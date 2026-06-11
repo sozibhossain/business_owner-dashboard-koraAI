@@ -11,7 +11,7 @@ import { useSocketEvent } from "@/lib/socket";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getInitials, timeAgo } from "@/lib/utils";
+import { asArray, getInitials, timeAgo } from "@/lib/utils";
 
 const TYPE_ICON: Record<string, string> = {
   message: "💬",
@@ -84,7 +84,7 @@ export function NotificationBell() {
   });
 
   const unreadCount: number = countResponse?.unreadCount ?? 0;
-  const notifications: any[] = listResponse?.notifications || [];
+  const notifications: any[] = asArray(listResponse?.notifications);
 
   useSocketEvent<{ unreadCount: number }>("notification:unread-count", (payload) => {
     queryClient.setQueryData(

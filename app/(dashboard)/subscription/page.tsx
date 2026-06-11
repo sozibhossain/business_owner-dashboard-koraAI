@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDate } from "@/lib/utils";
+import { asArray, formatDate } from "@/lib/utils";
 import {
   Send,
   Zap,
@@ -97,7 +97,7 @@ export default function SubscriptionPage() {
     queryFn: () => subscriptionApi.getMine().then((response) => response.data),
   });
 
-  const plans = (plansResponse?.data || []) as any[];
+  const plans = asArray(plansResponse?.data) as any[];
   const subscription = mineResponse?.data?.subscription || {};
   const usage = mineResponse?.data?.usage || {};
   const currentPlan = subscription.plan_id || null;
@@ -264,7 +264,7 @@ export default function SubscriptionPage() {
                         </div>
 
                         <ul className="mt-3 flex-1 space-y-1.5">
-                          {(plan.features || []).map((feature: string) => (
+                          {asArray<string>(plan.features).map((feature: string) => (
                             <li
                               key={feature}
                               className="flex items-start gap-2 text-[11px] text-gray-300"

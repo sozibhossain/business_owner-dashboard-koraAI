@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatDate, formatTime, getInitials, timeAgo } from "@/lib/utils";
+import { asArray, formatDate, formatTime, getInitials, timeAgo } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   CalendarDays,
@@ -253,7 +253,7 @@ export function InboxWorkspace({
   });
 
   const conversations: any[] = useMemo(
-    () => conversationsResponse?.data || [],
+    () => asArray(conversationsResponse?.data),
     [conversationsResponse?.data]
   );
 
@@ -288,7 +288,7 @@ export function InboxWorkspace({
   });
 
   const thread = threadResponse?.data;
-  const messages: any[] = thread?.messages || (selectedConversation as any)?.messages || [];
+  const messages: any[] = asArray(thread?.messages || (selectedConversation as any)?.messages);
   const recipient = getOtherParticipant(selectedConversation, currentUserId);
 
   const { data: mailsResponse, isLoading: mailsLoading } = useQuery({
@@ -298,7 +298,7 @@ export function InboxWorkspace({
       mailApi.getAll({ type: emailFolder, limit: 25 }).then((response) => response.data),
   });
 
-  const mails: any[] = mailsResponse?.data?.mails || [];
+  const mails: any[] = asArray(mailsResponse?.data?.mails);
   const selectedMail = mails.find((mail) => String(mail._id) === String(selectedMailId)) || mails[0] || null;
 
   useEffect(() => {
@@ -406,7 +406,7 @@ export function InboxWorkspace({
 
   useEffect(() => {
     if (!selectedId || !thread || String(selectedId).startsWith("pending-")) return;
-    const unread = (thread.messages || []).some(
+    const unread = asArray(thread.messages).some(
       (message: any) =>
         String(message.sender_id) !== String(currentUserId) && !message.isRead
     );
@@ -531,7 +531,7 @@ export function InboxWorkspace({
 
     const placeholderId = `pending-${peer._id}`;
     queryClient.setQueryData(["inbox-conversations"], (current: any) => {
-      const list = current?.data || [];
+      const list = asArray(current?.data);
       if (list.some((c: any) => String(c._id) === placeholderId)) return current;
       const placeholder = {
         _id: placeholderId,
@@ -1822,7 +1822,7 @@ function NewConversationDialog({
     enabled: open,
   });
 
-  const recipients: any[] = recipientsResponse?.data || [];
+  const recipients: any[] = asArray(recipientsResponse?.data);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

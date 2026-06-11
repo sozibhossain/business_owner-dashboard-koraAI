@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getInitials } from "@/lib/utils";
+import { asArray, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   CalendarDays,
@@ -151,9 +151,9 @@ export default function CalendarPage() {
       toast.error(error?.response?.data?.message || "Failed to sync calendar"),
   });
 
-  const appointments: any[] = appointmentsResponse?.data || [];
-  const insights: any[] = insightsResponse?.data || [];
-  const employees: any[] = employeesResponse?.data || [];
+  const appointments: any[] = asArray(appointmentsResponse?.data);
+  const insights: any[] = asArray(insightsResponse?.data);
+  const employees: any[] = asArray(employeesResponse?.data);
 
   const teamMembers = useMemo(() => {
     if (!employees.length) {

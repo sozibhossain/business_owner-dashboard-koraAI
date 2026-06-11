@@ -41,7 +41,7 @@ import {
   User as UserIcon,
   X,
 } from "lucide-react";
-import { getInitials } from "@/lib/utils";
+import { asArray, getInitials } from "@/lib/utils";
 import { DatePickerPopover } from "@/components/date-picker-popover";
 import { TimePickerPopover } from "@/components/time-picker-popover";
 
@@ -164,7 +164,7 @@ export function AppointmentDetailsDialog({ open, onOpenChange, appointmentId }: 
     enabled: open && mode === "edit",
   });
 
-  const services = useMemo(() => servicesResponse?.data || [], [
+  const services = useMemo(() => asArray(servicesResponse?.data), [
     servicesResponse?.data,
   ]);
 

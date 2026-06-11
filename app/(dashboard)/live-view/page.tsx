@@ -13,7 +13,7 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getInitials } from "@/lib/utils";
+import { getInitials, asArray } from "@/lib/utils";
 import Link from "next/link";
 import {
   Area,
@@ -295,12 +295,12 @@ export default function LiveViewPage() {
   useSocketEvent("call-accepted", refresh);
 
   /* ── Derived data ── */
-  const activities: any[] = useMemo(() => activityResp?.data || [], [activityResp]);
-  const appointments: any[] = useMemo(() => apptResp?.data || [], [apptResp]);
-  const yAppointments: any[] = useMemo(() => yApptResp?.data || [], [yApptResp]);
-  const conversations: any[] = useMemo(() => convResp?.data || [], [convResp]);
-  const calls: any[] = useMemo(() => callResp?.data || [], [callResp]);
-  const employees: any[] = useMemo(() => empResp?.data || [], [empResp]);
+  const activities: any[] = useMemo(() => asArray(activityResp?.data), [activityResp]);
+  const appointments: any[] = useMemo(() => asArray(apptResp?.data), [apptResp]);
+  const yAppointments: any[] = useMemo(() => asArray(yApptResp?.data), [yApptResp]);
+  const conversations: any[] = useMemo(() => asArray(convResp?.data), [convResp]);
+  const calls: any[] = useMemo(() => asArray(callResp?.data), [callResp]);
+  const employees: any[] = useMemo(() => asArray(empResp?.data), [empResp]);
 
   const activeAppts = appointments.filter((a) => a.status !== "cancelled");
   const inShop = activeAppts.filter((a) => ["started", "ongoing"].includes(a.status));

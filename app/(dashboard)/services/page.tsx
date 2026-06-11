@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { servicesApi } from "@/lib/api";
+import { asArray } from "@/lib/utils";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ export default function ServicesPage() {
         .then((response) => response.data),
   });
 
-  const services = (data?.data || []) as any[];
+  const services = asArray(data?.data) as any[];
 
   useEffect(() => {
     if (!dialogOpen) {

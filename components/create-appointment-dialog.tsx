@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CalendarDays, Clock, Plus, User } from "lucide-react";
+import { asArray } from "@/lib/utils";
 import { DatePickerPopover } from "@/components/date-picker-popover";
 import { TimePickerPopover } from "@/components/time-picker-popover";
 
@@ -191,15 +192,15 @@ export function CreateAppointmentDialog({
   });
 
   const customers = useMemo(
-    () => customersResponse?.data || customersResponse?.data?.customers || [],
+    () => asArray(customersResponse?.data || customersResponse?.data?.customers),
     [customersResponse?.data]
   );
   const employees = useMemo(
-    () => employeesResponse?.data || [],
+    () => asArray(employeesResponse?.data),
     [employeesResponse?.data]
   );
   const services = useMemo(
-    () => servicesResponse?.data || [],
+    () => asArray(servicesResponse?.data),
     [servicesResponse?.data]
   );
 
