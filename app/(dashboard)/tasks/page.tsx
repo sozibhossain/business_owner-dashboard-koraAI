@@ -1293,7 +1293,7 @@ export default function TasksPage() {
             </Card>
 
             {/* Quick Actions */}
-            <Card>
+            {/* <Card>
               <CardContent className="p-4">
                 <p className="mb-3 text-sm font-semibold text-white">Quick Actions</p>
                 <div className="grid grid-cols-4 gap-2">
@@ -1315,7 +1315,7 @@ export default function TasksPage() {
                   ))}
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
         </div>
       </div>

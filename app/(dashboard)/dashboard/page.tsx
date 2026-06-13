@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import {
   accountingApi,
   appointmentsApi,
@@ -104,17 +105,6 @@ const getGreeting = () => {
   return "Good evening";
 };
 
-const quickActions = [
-  { label: "New\nAppointment", icon: CalendarDays, color: "bg-blue-600/20 text-blue-400", border: "border-blue-600/20" },
-  { label: "Create\nInvoice",     icon: Receipt,      color: "bg-emerald-600/20 text-emerald-400", border: "border-emerald-600/20" },
-  { label: "Send\nMessage",       icon: MessageSquare, color: "bg-purple-600/20 text-purple-400", border: "border-purple-600/20" },
-  { label: "Manage\nEmployees",   icon: Users,        color: "bg-amber-600/20 text-amber-400",  border: "border-amber-600/20" },
-  { label: "Manage\nServices",    icon: BarChart3,    color: "bg-cyan-600/20 text-cyan-400",    border: "border-cyan-600/20" },
-  { label: "Create\nTask",        icon: ListTodo,     color: "bg-rose-600/20 text-rose-400",    border: "border-rose-600/20" },
-  { label: "Settings",            icon: Settings,     color: "bg-gray-600/20 text-gray-400",    border: "border-gray-600/20" },
-  { label: "Open\nWebsite",       icon: Globe,        color: "bg-indigo-600/20 text-indigo-400", border: "border-indigo-600/20" },
-];
-
 const koraSuggestionChips = [
   { icon: CalendarDays, label: "Show me today's appointments" },
   { icon: ArrowRight,   label: "Move an appointment" },
@@ -133,6 +123,7 @@ type DashboardAppointment = {
 };
 
 export default function BusinessOwnerDashboard() {
+  const router = useRouter();
   const [koraInput, setKoraInput] = useState("");
   const [scheduleView, setScheduleView] = useState<"Day" | "Week" | "Month">("Day");
   const [koraMessages, setKoraMessages] = useState<
@@ -182,6 +173,75 @@ export default function BusinessOwnerDashboard() {
   );
 
   const userName = profileData?.name?.split(" ")[0] || "there";
+  const websiteUrl = profileData?.website?.trim();
+
+  const quickActions = [
+    {
+      label: "New\nAppointment",
+      icon: CalendarDays,
+      color: "bg-blue-600/20 text-blue-400",
+      border: "border-blue-600/20",
+      onClick: () => router.push("/calendar"),
+    },
+    {
+      label: "Create\nInvoice",
+      icon: Receipt,
+      color: "bg-emerald-600/20 text-emerald-400",
+      border: "border-emerald-600/20",
+      onClick: () => router.push("/accounting"),
+    },
+    {
+      label: "Send\nMessage",
+      icon: MessageSquare,
+      color: "bg-purple-600/20 text-purple-400",
+      border: "border-purple-600/20",
+      onClick: () => router.push("/inbox"),
+    },
+    {
+      label: "Manage\nEmployees",
+      icon: Users,
+      color: "bg-amber-600/20 text-amber-400",
+      border: "border-amber-600/20",
+      onClick: () => router.push("/employees"),
+    },
+    {
+      label: "Manage\nServices",
+      icon: BarChart3,
+      color: "bg-cyan-600/20 text-cyan-400",
+      border: "border-cyan-600/20",
+      onClick: () => router.push("/services"),
+    },
+    {
+      label: "Create\nTask",
+      icon: ListTodo,
+      color: "bg-rose-600/20 text-rose-400",
+      border: "border-rose-600/20",
+      onClick: () => router.push("/tasks"),
+    },
+    {
+      label: "Settings",
+      icon: Settings,
+      color: "bg-gray-600/20 text-gray-400",
+      border: "border-gray-600/20",
+      onClick: () => router.push("/settings"),
+    },
+    {
+      label: "Open\nWebsite",
+      icon: Globe,
+      color: "bg-indigo-600/20 text-indigo-400",
+      border: "border-indigo-600/20",
+      onClick: () => {
+        if (!websiteUrl) {
+          toast.info("Add your website in Settings first.");
+          return;
+        }
+        const normalizedUrl = /^https?:\/\//i.test(websiteUrl)
+          ? websiteUrl
+          : `https://${websiteUrl}`;
+        window.open(normalizedUrl, "_blank", "noopener,noreferrer");
+      },
+    },
+  ];
 
   const stats = [
     {
@@ -505,12 +565,13 @@ export default function BusinessOwnerDashboard() {
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
               {quickActions.map((action) => (
                 <button
                   key={action.label}
-                  onClick={() => toast.info(action.label.replace("\n", " "))}
-                  className={`flex flex-col items-center gap-2 py-4 px-2 rounded-xl border ${action.border} bg-[#0d1a2d] hover:bg-[#1e2d40] transition-colors`}
+                  type="button"
+                  onClick={action.onClick}
+                  className={`flex min-h-[106px] flex-col items-center justify-center gap-2 rounded-xl border px-2 py-4 ${action.border} bg-[#0d1a2d] transition-colors hover:bg-[#1e2d40]`}
                 >
                   <div className={`w-10 h-10 rounded-xl border ${action.border} ${action.color} flex items-center justify-center`}>
                     <action.icon className="w-4 h-4" />

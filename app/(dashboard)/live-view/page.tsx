@@ -743,7 +743,7 @@ export default function LiveViewPage() {
             </Card>
 
             {/* Resource Status */}
-            <Card>
+            {/* <Card>
               <CardContent className="p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-sm font-semibold text-white">Resource Status</p>
@@ -766,7 +766,7 @@ export default function LiveViewPage() {
                   <DonutRing value={0} total={0} color="#f97316" iconColor="text-orange-400" icon={Wrench} label="Equipment" sub="Not set up" />
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
         </div>
       </div>
