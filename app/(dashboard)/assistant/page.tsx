@@ -1,19 +1,36 @@
 ﻿"use client";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Paperclip, Sparkles, BarChart2, Calendar, Users, Clock } from "lucide-react";
-import { toast } from "sonner";
-import { useMutation } from "@tanstack/react-query";
-import { koraAssistantApi } from "@/lib/api";
+import {
+  ArrowRight,
+  BarChart2,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  MessageCircle,
+  PlusCircle,
+  Send,
+  Sparkles,
+  Users,
+} from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { aiDataApi } from "@/lib/api";
 
 interface Message { id: string; role: "user" | "assistant"; content: string; time: string; }
+interface Conversation {
+  _id?: string;
+  userMessage?: string;
+  aireplay?: string;
+  createdAt?: string;
+  time?: string;
+}
 
 const initialMessages: Message[] = [{
   id: "1", role: "assistant",
-  content: "Hi Sarah! ðŸ‘‹\n\nI'm Kora, your AI assistant. I can help you manage your business, answer questions, automate tasks and provide insights.",
+  content: "Hi Sarah!\n\nI'm Kora, your AI assistant. I can help you manage your business, answer questions, automate tasks and provide insights.",
   time: "Now",
 }];
 
@@ -25,25 +42,136 @@ const suggestions = [
 ];
 
 const smartSuggestions = [
-  { icon: "ðŸ“„", title: "3 invoices are overdue.", desc: "Review and send reminders.", color: "bg-amber-600/20" },
-  { icon: "ðŸ‘¥", title: "5 new leads need follow-up.", desc: "Reach out to convert them.", color: "bg-blue-600/20" },
-  { icon: "ðŸ“ˆ", title: "Your revenue is up 18% this month.", desc: "View detailed analytics.", color: "bg-emerald-600/20" },
-  { icon: "ðŸ“…", title: "You have 2 upcoming appointments.", desc: "Check your calendar.", color: "bg-purple-600/20" },
+  { icon: Calendar, title: "3 invoices are overdue.", desc: "Review and send reminders.", color: "bg-blue-600/20 text-blue-400" },
+  { icon: Users, title: "5 new leads need follow-up.", desc: "Reach out to convert them.", color: "bg-emerald-600/20 text-emerald-400" },
+  { icon: BarChart2, title: "Your revenue is up 18% this month.", desc: "View detailed analytics.", color: "bg-teal-600/20 text-teal-400" },
+  { icon: Sparkles, title: "You have 2 upcoming appointments.", desc: "Check your calendar.", color: "bg-indigo-600/20 text-indigo-400" },
 ];
 
+const fallbackConversations: Conversation[] = [
+  {
+    userMessage: "Show me this month's top customers by total spending.",
+    aireplay: "Here's a summary of your top 5 customers by revenue.",
+    time: "10:24 AM",
+  },
+  {
+    userMessage: "What's the status of my open service requests?",
+    aireplay: "You have 5 open requests, 2 are in progress and 3 are pending.",
+    time: "Yesterday",
+  },
+  {
+    userMessage: "How many new customers did we acquire this month?",
+    aireplay: "You acquired 12 new customers in May. I can show you the details.",
+    time: "May 27",
+  },
+  {
+    userMessage: "Remind me to follow up with inactive customers.",
+    aireplay: "I'll remind you to follow up with 15 inactive customers this week.",
+    time: "May 26",
+  },
+];
+
+const KoraOrb = ({ size = 150 }: { size?: number }) => (
+  <div className="kora-orb relative shrink-0" style={{ width: size, height: size }} aria-hidden="true">
+    <style>{`
+      @keyframes koraOrbPulse {
+        0%, 100% { opacity: .62; transform: scale(.98); }
+        50% { opacity: 1; transform: scale(1.05); }
+      }
+      @keyframes koraOrbSpin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @keyframes koraOrbSpinReverse {
+        from { transform: rotate(360deg); }
+        to { transform: rotate(0deg); }
+      }
+      @keyframes koraOrbFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+      }
+      @keyframes koraOrbTwinkle {
+        0%, 100% { opacity: .25; transform: scale(.7); }
+        50% { opacity: 1; transform: scale(1.15); }
+      }
+      .kora-orb-glow { animation: koraOrbPulse 2.8s ease-in-out infinite; }
+      .kora-orb-ring { animation: koraOrbPulse 2.2s ease-in-out infinite; }
+      .kora-orb-particles { animation: koraOrbSpin 18s linear infinite; transform-origin: 50% 50%; }
+      .kora-orb-particles-reverse { animation: koraOrbSpinReverse 26s linear infinite; transform-origin: 50% 50%; }
+      .kora-orb-face { animation: koraOrbFloat 3.2s ease-in-out infinite; }
+      .kora-orb-dot { animation: koraOrbTwinkle 2.4s ease-in-out infinite; }
+      @media (prefers-reduced-motion: reduce) {
+        .kora-orb-glow,
+        .kora-orb-ring,
+        .kora-orb-particles,
+        .kora-orb-particles-reverse,
+        .kora-orb-face,
+        .kora-orb-dot { animation: none; }
+      }
+    `}</style>
+    <div className="kora-orb-glow absolute inset-0 rounded-full bg-blue-500/10 blur-2xl" />
+    <div className="absolute inset-[7%] rounded-full border border-blue-400/25" />
+    <div className="kora-orb-ring absolute inset-[15%] rounded-full border-4 border-blue-400 shadow-[0_0_28px_rgba(59,130,246,0.9),inset_0_0_22px_rgba(59,130,246,0.45)]" />
+    <div className="absolute inset-[23%] rounded-full bg-[#06101f] shadow-inner" />
+    <div className="kora-orb-particles absolute inset-0">
+      {Array.from({ length: 34 }).map((_, index) => {
+        const angle = (index / 34) * Math.PI * 2;
+        const radius = size * (0.38 + (index % 5) * 0.024);
+        return (
+          <span
+            key={index}
+            className="kora-orb-dot absolute h-1 w-1 rounded-full bg-blue-400/70"
+            style={{
+              left: size / 2 + Math.cos(angle) * radius,
+              top: size / 2 + Math.sin(angle) * radius,
+              opacity: 0.35 + (index % 4) * 0.15,
+              animationDelay: `${index * 90}ms`,
+            }}
+          />
+        );
+      })}
+    </div>
+    <div className="kora-orb-particles-reverse absolute inset-[9%] rounded-full border border-dashed border-blue-400/20" />
+    <div className="absolute inset-0 flex items-center justify-center">
+      <div className="kora-orb-face mt-2 flex flex-col items-center gap-2">
+        <div className="flex gap-5">
+          <span className="h-5 w-3 rounded-full bg-white shadow-[0_0_14px_rgba(255,255,255,0.95)]" />
+          <span className="h-5 w-3 rounded-full bg-white shadow-[0_0_14px_rgba(255,255,255,0.95)]" />
+        </div>
+        <svg width="32" height="16" viewBox="0 0 32 16">
+          <path d="M7 6c4 6 14 6 18 0" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.9" />
+        </svg>
+      </div>
+    </div>
+  </div>
+);
+
 export default function AssistantPage() {
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const { data: historyResponse } = useQuery({
+    queryKey: ["ai-data-history"],
+    queryFn: () => aiDataApi.getAll().then((response) => response.data),
+  });
+
+  const persistedConversations: Conversation[] = Array.isArray(historyResponse?.data)
+    ? historyResponse.data
+    : [];
+  const recentConversations = persistedConversations.length
+    ? persistedConversations
+    : fallbackConversations;
 
   const sendMutation = useMutation({
-    mutationFn: (msg: string) => koraAssistantApi.sendMessage({ message: msg }),
+    mutationFn: (msg: string) => aiDataApi.create({ message: msg }),
     onSuccess: (res) => {
       setMessages(prev => [...prev, {
         id: Date.now().toString(), role: "assistant",
-        content: res.data?.data?.reply || "I've analyzed your business data. Here are the insights.",
+        content: res.data?.data?.aireplay || "I've analyzed your business data. Here are the insights.",
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       }]);
+      queryClient.invalidateQueries({ queryKey: ["ai-data-history"] });
     },
     onError: () => {
       setMessages(prev => [...prev, {
@@ -54,143 +182,201 @@ export default function AssistantPage() {
     },
   });
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-
-  function handleSend() {
-    if (!input.trim()) return;
-    setMessages(prev => [...prev, { id: Date.now().toString(), role: "user", content: input, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
-    sendMutation.mutate(input);
+  function handleSend(text?: string) {
+    const message = (text ?? input).trim();
+    if (!message) return;
+    setMessages(prev => [...prev, { id: Date.now().toString(), role: "user", content: message, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
+    sendMutation.mutate(message);
     setInput("");
   }
 
   return (
     <div>
-      <Header title="Kora Assistant" subtitle="Your AI assistant that understands your business and gets things done." />
+      <Header
+        title="Kora Assistant"
+        subtitle="Your AI assistant that understands your business and gets things done."
+      />
       <div className="p-3 sm:p-4 lg:p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Chat */}
-          <Card className="lg:col-span-2">
-            <CardContent className="p-0 flex flex-col h-[calc(100vh-200px)]">
-              {/* Welcome Banner */}
-              {messages.length <= 2 && (
-                <div className="p-5 border-b border-[#1e2d40]">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-blue-600/10 flex items-center justify-center shrink-0">
-                      <span className="text-4xl">ðŸ¤–</span>
-                    </div>
-                    <div>
-                      <p className="text-lg font-semibold text-white">Hi Sarah! ðŸ‘‹</p>
-                      <p className="text-sm text-gray-400 mt-1">I'm Kora, your AI assistant. I can help you manage your business, answer questions, automate tasks and provide insights.</p>
-                      <div className="relative mt-3">
-                        <Input placeholder="Ask me anything about your business..." className="pr-10" onKeyDown={e => e.key === "Enter" && handleSend()} onChange={e => setInput(e.target.value)} value={input} />
-                        <button onClick={handleSend} className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center">
-                          <Send className="w-3.5 h-3.5 text-white" />
-                        </button>
-                      </div>
-                      <div className="flex gap-2 mt-2 flex-wrap">
-                        {suggestions.map(s => (
-                          <button key={s.text} onClick={() => setInput(s.text)}
-                            className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#1e2d40] rounded-lg text-gray-300 hover:bg-[#2a3547]">
-                            <s.icon className="w-3 h-3 text-gray-400" />{s.text}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-3">
-                {messages.slice(messages.length > 2 ? 0 : 1).map((msg) => (
-                  <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "items-start gap-3"}`}>
-                    {msg.role === "assistant" && (
-                      <div className="w-7 h-7 rounded-full bg-blue-600/20 flex items-center justify-center shrink-0 mt-0.5 text-sm">ðŸ¤–</div>
-                    )}
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${msg.role === "user" ? "bg-blue-600 text-white" : "bg-[#1e2d40] text-gray-200"}`}>
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                      <p className={`text-[10px] mt-1 ${msg.role === "user" ? "text-blue-200" : "text-gray-500"}`}>{msg.time}</p>
-                    </div>
-                  </div>
-                ))}
-                {sendMutation.isPending && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-blue-600/20 flex items-center justify-center text-sm">ðŸ¤–</div>
-                    <div className="bg-[#1e2d40] rounded-2xl px-4 py-3">
-                      <div className="flex gap-1">{[0,1,2].map(i => <div key={i} className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: `${i*150}ms` }} />)}</div>
-                    </div>
-                  </div>
-                )}
-                <div ref={bottomRef} />
-              </div>
-
-              {/* Recent conversations list when in chat */}
-              {messages.length > 2 && (
-                <div className="px-5 pb-3 border-t border-[#1e2d40] pt-3">
-                  <div className="flex gap-2 flex-wrap">
-                    {["Show me today's appointments", "Move an appointment", "Show my weekly performance"].map(s => (
-                      <button key={s} onClick={() => setInput(s)}
-                        className="text-xs px-3 py-1.5 bg-[#1e2d40] rounded-lg text-gray-300 hover:bg-[#2a3547]">{s}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Input */}
-              <div className="p-4 border-t border-[#1e2d40]">
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="icon"><Paperclip className="w-4 h-4" /></Button>
-                  <Input placeholder="Ask Kora anything..." value={input} onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSend()} className="flex-1" />
-                  <Button onClick={handleSend} disabled={!input.trim()}><Send className="w-4 h-4" /></Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Right Panel */}
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,0.85fr)]">
           <div className="space-y-4">
-            {/* Kora Status */}
-            <Card className="border-blue-600/20">
-              <CardContent className="pt-4 text-center">
-                <div className="w-16 h-16 rounded-full bg-blue-600/10 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-4xl">ðŸ¤–</span>
+            <Card className="overflow-hidden border-blue-600/20 bg-[#091526]">
+              <CardContent className="p-0">
+                <div className="flex min-h-[224px] flex-col gap-5 p-5 sm:flex-row sm:items-center">
+                  <div className="flex justify-center sm:w-[180px]">
+                    <KoraOrb size={162} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-2xl font-semibold text-white">Hi Sarah!</h2>
+                    <p className="mt-3 max-w-xl text-sm leading-6 text-gray-300">
+                      I&apos;m Kora, your AI assistant. I can help you manage your business,
+                      answer questions, automate tasks and provide insights.
+                    </p>
+                    <div className="relative mt-5 max-w-xl">
+                      <Input
+                        placeholder="Ask me anything about your business..."
+                        className="h-12 rounded-xl border-[#1e2d40] bg-[#0d1a2d] pr-12 text-sm"
+                        onKeyDown={(event) => event.key === "Enter" && handleSend()}
+                        onChange={(event) => setInput(event.target.value)}
+                        value={input}
+                      />
+                      <button
+                        onClick={() => handleSend()}
+                        disabled={!input.trim() || sendMutation.isPending}
+                        className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-blue-600 text-white disabled:opacity-50"
+                      >
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {suggestions.map((suggestion) => (
+                        <button
+                          key={suggestion.text}
+                          onClick={() => handleSend(suggestion.text)}
+                          className="flex items-center gap-1.5 rounded-lg border border-[#1e2d40] bg-[#0d1a2d] px-3 py-2 text-[11px] text-gray-300 transition-colors hover:bg-[#1e2d40]"
+                        >
+                          <suggestion.icon className="h-3.5 w-3.5 text-gray-400" />
+                          {suggestion.text}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <p className="font-medium text-white">Kora is active</p>
-                <span className="inline-flex items-center gap-1 text-xs text-emerald-400 mt-1">
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />Online
-                </span>
-                <p className="text-xs text-gray-400 mt-2">Always here to help you.</p>
               </CardContent>
             </Card>
 
-            {/* Smart Suggestions */}
-            <Card>
-              <CardHeader><CardTitle className="text-sm flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-blue-400" />Smart Suggestions</CardTitle></CardHeader>
-              <CardContent>
-                {smartSuggestions.map(s => (
-                  <button key={s.title} onClick={() => setInput(s.title)}
-                    className="w-full flex items-start gap-3 py-2 hover:bg-[#1e2d40] rounded-lg px-2 transition-colors text-left mb-1">
-                    <div className={`w-7 h-7 rounded-lg ${s.color} flex items-center justify-center shrink-0`}>
-                      <span className="text-sm">{s.icon}</span>
+            <Card className="bg-[#091526]">
+              <CardHeader className="border-b border-[#1e2d40] pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Recent Conversations</CardTitle>
+                  <button className="text-sm font-medium text-cyan-400 hover:text-cyan-300">
+                    View all
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y divide-[#1e2d40] px-5">
+                  {recentConversations.slice(0, 4).map((conversation, index) => (
+                    <button
+                      key={conversation._id || conversation.userMessage || index}
+                      onClick={() => handleSend(conversation.userMessage)}
+                      className="flex w-full items-start gap-4 py-4 text-left"
+                    >
+                      <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-gray-300" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-gray-100">
+                          {conversation.userMessage || "Conversation"}
+                        </p>
+                        <p className="mt-1 truncate text-xs text-gray-500">
+                          {conversation.aireplay || "Kora is ready to continue this conversation."}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-xs text-gray-400">
+                        {conversation.time ||
+                          (conversation.createdAt
+                            ? new Date(conversation.createdAt).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })
+                            : "")}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="border-t border-[#1e2d40] py-5 text-center">
+                  <Button
+                    variant="outline"
+                    className="h-9 gap-2 rounded-lg px-5 text-xs"
+                    onClick={() => {
+                      setMessages(initialMessages);
+                      setInput("");
+                    }}
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    Start new conversation
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-4">
+            <Card className="border-blue-600/20 bg-[#091526]">
+              <CardContent className="p-5">
+                <div className="mb-4 flex items-center gap-2 text-sm text-gray-200">
+                  <span className="h-2 w-2 rounded-full bg-cyan-400" />
+                  Kora is active
+                </div>
+                <div className="flex justify-center py-1">
+                  <KoraOrb size={148} />
+                </div>
+                <p className="mt-4 text-center text-sm text-gray-400">
+                  Always here to help you
+                </p>
+                <div className="mt-3 flex justify-center">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2 text-xs text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                    Online
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-[#091526]">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Sparkles className="h-4 w-4 text-blue-400" />
+                  Smart Suggestions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {smartSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion.title}
+                    onClick={() => handleSend(suggestion.title)}
+                    className="flex w-full items-center gap-3 rounded-xl bg-[#0d1a2d] p-3 text-left transition-colors hover:bg-[#1e2d40]"
+                  >
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${suggestion.color}`}>
+                      <suggestion.icon className="h-5 w-5" />
                     </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-200">{s.title}</p>
-                      <p className="text-[10px] text-gray-400">{s.desc}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-gray-100">{suggestion.title}</p>
+                      <p className="mt-1 text-[11px] text-gray-500">{suggestion.desc}</p>
                     </div>
-                    <span className="text-gray-500 ml-auto">â€º</span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-gray-500" />
                   </button>
                 ))}
               </CardContent>
             </Card>
 
-            {/* Learn more */}
-            <Card>
-              <CardContent className="pt-4">
-                <p className="text-sm font-medium text-gray-200 mb-2">Learn more about Kora</p>
-                <button className="text-xs text-blue-400 hover:text-blue-300">Explore all capabilities â†’</button>
+            <Card className="bg-[#091526]">
+              <CardContent className="p-5">
+                <p className="text-base font-semibold text-gray-100">Learn more about Kora</p>
+                <button className="mt-4 flex w-full items-center justify-between rounded-xl bg-[#0d1a2d] px-4 py-3 text-sm text-gray-200 transition-colors hover:bg-[#1e2d40]">
+                  Explore all capabilities
+                  <ArrowRight className="h-4 w-4 text-gray-400" />
+                </button>
               </CardContent>
             </Card>
+
+            {messages.length > 1 ? (
+              <Card className="bg-[#091526]">
+                <CardContent className="space-y-3 p-4">
+                  {messages.slice(-2).map((message) => (
+                    <div key={message.id} className="rounded-xl bg-[#0d1a2d] p-3">
+                      <div className="mb-1 flex items-center gap-2 text-[11px] text-gray-500">
+                        {message.role === "assistant" ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-blue-400" />
+                        ) : (
+                          <MessageCircle className="h-3.5 w-3.5 text-cyan-400" />
+                        )}
+                        {message.role === "assistant" ? "Kora" : "You"} - {message.time}
+                      </div>
+                      <p className="line-clamp-3 text-xs text-gray-300">{message.content}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ) : null}
           </div>
         </div>
       </div>

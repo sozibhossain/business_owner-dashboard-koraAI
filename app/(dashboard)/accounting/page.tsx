@@ -11,18 +11,30 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { asArray, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  CalendarDays,
+  ChevronDown,
   Download,
   DollarSign,
+  Eye,
   Search,
   TrendingUp,
   Sparkles,
   Receipt,
   Send,
   FileText,
+  MoreHorizontal,
+  Plus,
 } from "lucide-react";
 import {
   Area,
@@ -99,6 +111,14 @@ export default function AccountingPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [period, setPeriod] = useState("month");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const [invoiceForm, setInvoiceForm] = useState({
+    amount: "",
+    dueDate: "",
+    description: "",
+    type: "invoice",
+  });
 
   const { data: dashboardResponse, isLoading: dashboardLoading } = useQuery({
     queryKey: ["accounting-dashboard"],
@@ -123,6 +143,31 @@ export default function AccountingPage() {
         .then((response) => response.data),
   });
 
+  const { data: selectedInvoiceResponse, isLoading: selectedInvoiceLoading } = useQuery({
+    queryKey: ["accounting-invoice-detail", selectedInvoiceId],
+    queryFn: () => accountingApi.getById(String(selectedInvoiceId)).then((response) => response.data),
+    enabled: Boolean(selectedInvoiceId),
+  });
+
+  const createInvoiceMutation = useMutation({
+    mutationFn: () =>
+      accountingApi.create({
+        amount: Number(invoiceForm.amount),
+        dueDate: invoiceForm.dueDate || undefined,
+        description: invoiceForm.description || undefined,
+        type: invoiceForm.type || "invoice",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accounting-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["accounting-invoices"] });
+      setCreateOpen(false);
+      setInvoiceForm({ amount: "", dueDate: "", description: "", type: "invoice" });
+      toast.success("Invoice created");
+    },
+    onError: (error: any) =>
+      toast.error(error?.response?.data?.message || "Failed to create invoice"),
+  });
+
   const recordPaymentMutation = useMutation({
     mutationFn: (id: string) => accountingApi.recordPayment(id),
     onSuccess: () => {
@@ -135,9 +180,25 @@ export default function AccountingPage() {
       toast.error(error?.response?.data?.message || "Failed to record payment"),
   });
 
+  const exportInvoices = async () => {
+    try {
+      const response = await accountingApi.export();
+      const blob = new Blob([response.data], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "invoices.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to export invoices");
+    }
+  };
+
   const dashboard = dashboardResponse?.data || {};
   const invoices = asArray(invoicesResponse?.data);
   const meta = invoicesResponse?.meta || {};
+  const selectedInvoice = selectedInvoiceResponse?.data;
 
   const chartData = useMemo(
     () =>
@@ -172,7 +233,7 @@ export default function AccountingPage() {
     {
       label: "Revenue Today",
       value: formatCurrency(dashboard.revenueToday || 0),
-      helper: "Paid transactions today",
+      helper: "18% vs yesterday",
       icon: DollarSign,
       color: "bg-emerald-600",
       spark: "#10b981",
@@ -181,7 +242,7 @@ export default function AccountingPage() {
     {
       label: "Revenue This Week",
       value: formatCurrency(dashboard.revenueWeek || 0),
-      helper: "Last 7 days",
+      helper: "12% vs last week",
       icon: TrendingUp,
       color: "bg-blue-600",
       spark: "#3b82f6",
@@ -190,16 +251,16 @@ export default function AccountingPage() {
     {
       label: "Revenue This Month",
       value: formatCurrency(dashboard.revenueMonth || 0),
-      helper: "Current month",
+      helper: "24% vs last month",
       icon: TrendingUp,
       color: "bg-purple-600",
       spark: "#a855f7",
       seed: 5,
     },
     {
-      label: "Outstanding",
+      label: "Outstanding Payments",
       value: formatCurrency(dashboard.outstandingAmount || 0),
-      helper: `${dashboard.outstandingCount || 0} invoice(s) pending/overdue`,
+      helper: `${dashboard.outstandingCount || 0} invoices pending`,
       icon: AlertTriangle,
       color: "bg-amber-600",
       spark: "#f59e0b",
@@ -241,28 +302,112 @@ export default function AccountingPage() {
   }, [dashboard.outstandingCount, dashboard.outstandingAmount, chartData]);
 
   const quickActions = [
-    { label: "New Invoice", icon: Receipt },
-    { label: "Send Reminder", icon: Send },
-    { label: "Export CSV", icon: FileText },
+    { label: "Create Invoice", icon: Receipt, onClick: () => setCreateOpen(true) },
+    {
+      label: "Record Payment",
+      icon: Send,
+      onClick: () => {
+        setStatusFilter("pending");
+        setPage(1);
+      },
+    },
+    { label: "Add Report", icon: FileText, onClick: exportInvoices },
   ];
 
   return (
     <div>
       <Header
         title="Accounting"
-        subtitle="Live revenue, invoice, and payment data from your backend."
+        subtitle="Track your finances, manage invoices and grow your business."
         action={
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs"
-            onClick={() => toast.info("CSV export is available from the backend endpoint.")}
-          >
-            <Download className="w-3.5 h-3.5 mr-1" />
-            Export
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={exportInvoices}>
+              <Download className="w-3.5 h-3.5 mr-1" />
+              Export
+            </Button>
+            <Button size="sm" className="h-8 bg-blue-600 text-xs hover:bg-blue-700" onClick={() => setCreateOpen(true)}>
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Create Invoice
+            </Button>
+          </div>
         }
       />
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Invoice</DialogTitle>
+            <DialogDescription>Create a new invoice through /api/v1/accounting.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">Amount</label>
+              <Input
+                type="number"
+                min="0"
+                value={invoiceForm.amount}
+                onChange={(event) => setInvoiceForm((current) => ({ ...current, amount: event.target.value }))}
+                placeholder="120.00"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">Due date</label>
+              <Input
+                type="date"
+                value={invoiceForm.dueDate}
+                onChange={(event) => setInvoiceForm((current) => ({ ...current, dueDate: event.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">Description</label>
+              <Input
+                value={invoiceForm.description}
+                onChange={(event) => setInvoiceForm((current) => ({ ...current, description: event.target.value }))}
+                placeholder="Service invoice"
+              />
+            </div>
+            <Button
+              className="w-full bg-blue-600 hover:bg-blue-700"
+              disabled={!Number(invoiceForm.amount) || createInvoiceMutation.isPending}
+              onClick={() => createInvoiceMutation.mutate()}
+            >
+              Create Invoice
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(selectedInvoiceId)} onOpenChange={(open) => !open && setSelectedInvoiceId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invoice Detail</DialogTitle>
+            <DialogDescription>Fetched from /api/v1/accounting/:id.</DialogDescription>
+          </DialogHeader>
+          {selectedInvoiceLoading ? (
+            <Skeleton className="h-36 w-full" />
+          ) : selectedInvoice ? (
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between border-b border-[#1e2d40] pb-2">
+                <span className="text-gray-500">Invoice</span>
+                <span className="font-medium text-gray-100">{selectedInvoice.transaction_id}</span>
+              </div>
+              <div className="flex justify-between border-b border-[#1e2d40] pb-2">
+                <span className="text-gray-500">Client</span>
+                <span className="text-gray-100">{selectedInvoice.customer_id?.name || "No customer"}</span>
+              </div>
+              <div className="flex justify-between border-b border-[#1e2d40] pb-2">
+                <span className="text-gray-500">Amount</span>
+                <span className="text-gray-100">{formatCurrency(selectedInvoice.amount || 0)}</span>
+              </div>
+              <div className="flex justify-between border-b border-[#1e2d40] pb-2">
+                <span className="text-gray-500">Status</span>
+                <Badge variant={statusVariant[selectedInvoice.status] || "secondary"}>{selectedInvoice.status}</Badge>
+              </div>
+              <p className="text-xs text-gray-400">{selectedInvoice.description || "No description provided."}</p>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <div className="space-y-5 p-3 sm:p-4 lg:p-6">
         {/* Stats with sparklines */}
@@ -306,16 +451,23 @@ export default function AccountingPage() {
               <CardHeader>
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <CardTitle className="text-sm">Revenue Overview</CardTitle>
-                  <div className="flex gap-1 bg-[#0d1a2d] p-1 rounded-lg">
-                    {["day", "week", "month", "year"].map((value) => (
-                      <button
-                        key={value}
-                        onClick={() => setPeriod(value)}
-                        className={`px-2.5 py-1 rounded-md text-xs font-medium capitalize ${period === value ? "bg-blue-600 text-white" : "text-gray-400 hover:text-gray-200"}`}
-                      >
-                        {value}
-                      </button>
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1 bg-[#0d1a2d] p-1 rounded-lg">
+                      {["day", "week", "month", "year"].map((value) => (
+                        <button
+                          key={value}
+                          onClick={() => setPeriod(value)}
+                          className={`px-2.5 py-1 rounded-md text-xs font-medium capitalize ${period === value ? "bg-blue-600 text-white" : "text-gray-400 hover:text-gray-200"}`}
+                        >
+                          {value}
+                        </button>
+                      ))}
+                    </div>
+                    <button className="hidden h-9 items-center gap-2 rounded-lg border border-[#1e2d40] bg-[#0d1a2d] px-3 text-xs text-gray-300 sm:flex">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      This Month
+                      <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
+                    </button>
                   </div>
                 </div>
               </CardHeader>
@@ -371,8 +523,30 @@ export default function AccountingPage() {
             {/* Invoices */}
             <Card>
               <CardHeader>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex gap-1 bg-[#0d1a2d] p-1 rounded-lg flex-wrap">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <CardTitle className="text-sm">Invoices</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <div className="relative hidden sm:block">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                        <Input
+                          placeholder="Search invoices..."
+                          value={search}
+                          onChange={(event) => {
+                            setPage(1);
+                            setSearch(event.target.value);
+                          }}
+                          className="h-9 w-72 pl-8 text-xs"
+                        />
+                      </div>
+                      <Button className="h-9 gap-2 bg-blue-600 text-xs hover:bg-blue-700" onClick={() => setCreateOpen(true)}>
+                        <Plus className="h-4 w-4" />
+                        Create Invoice
+                        <ChevronDown className="h-4 w-4 border-l border-blue-400/30 pl-1" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex gap-1 bg-[#0d1a2d] p-1 rounded-lg flex-wrap w-fit">
                     {["all", "paid", "pending", "overdue"].map((value) => (
                       <button
                         key={value}
@@ -380,23 +554,11 @@ export default function AccountingPage() {
                           setPage(1);
                           setStatusFilter(value);
                         }}
-                        className={`px-2.5 py-1 rounded-md text-xs font-medium capitalize ${statusFilter === value ? "bg-blue-600 text-white" : "text-gray-400 hover:text-gray-200"}`}
+                        className={`px-3 py-1 rounded-md text-xs font-medium capitalize ${statusFilter === value ? "bg-blue-600 text-white" : "text-gray-400 hover:text-gray-200"}`}
                       >
                         {value}
                       </button>
                     ))}
-                  </div>
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
-                    <Input
-                      placeholder="Search invoices..."
-                      value={search}
-                      onChange={(event) => {
-                        setPage(1);
-                        setSearch(event.target.value);
-                      }}
-                      className="pl-8 h-8 text-xs"
-                    />
                   </div>
                 </div>
               </CardHeader>
@@ -416,7 +578,7 @@ export default function AccountingPage() {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-[#1e2d40]">
-                          {["Invoice", "Customer", "Due", "Amount", "Status", "Action"].map(
+                          {["Invoice", "Client", "Date", "Due Date", "Amount", "Status", "Actions"].map(
                             (heading) => (
                               <th
                                 key={heading}
@@ -460,6 +622,13 @@ export default function AccountingPage() {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                              {invoice.transaction_date
+                                ? formatDate(invoice.transaction_date)
+                                : invoice.createdAt
+                                  ? formatDate(invoice.createdAt)
+                                  : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
                               {invoice.dueDate ? formatDate(invoice.dueDate) : "—"}
                             </td>
                             <td className="px-4 py-3 text-xs text-gray-200 whitespace-nowrap">
@@ -474,20 +643,30 @@ export default function AccountingPage() {
                               </Badge>
                             </td>
                             <td className="px-4 py-3">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-[10px]"
-                                disabled={
-                                  invoice.status === "paid" ||
-                                  recordPaymentMutation.isPending
-                                }
-                                onClick={() =>
-                                  recordPaymentMutation.mutate(String(invoice._id))
-                                }
-                              >
-                                Mark paid
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8 rounded-lg"
+                                  onClick={() => setSelectedInvoiceId(String(invoice._id))}
+                                  title="Invoice detail"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8 rounded-lg"
+                                  disabled={invoice.status === "paid" || recordPaymentMutation.isPending}
+                                  onClick={() => recordPaymentMutation.mutate(String(invoice._id))}
+                                  title="Record payment"
+                                >
+                                  <Send className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg" title="More actions">
+                                  <MoreHorizontal className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -501,6 +680,13 @@ export default function AccountingPage() {
                     Page {meta.page || page} of{" "}
                     {Math.max(1, Math.ceil((meta.total || 0) / (meta.limit || 10)))}
                   </p>
+                  <button
+                    className="hidden items-center gap-2 text-xs text-blue-400 hover:text-blue-300 sm:inline-flex"
+                    onClick={() => setPage((current) => current + 1)}
+                    disabled={(meta.total || 0) <= page * (meta.limit || 10)}
+                  >
+                    View all invoices <Send className="h-3.5 w-3.5" />
+                  </button>
                   <div className="flex gap-2">
                     <Button
                       size="sm"
@@ -620,19 +806,21 @@ export default function AccountingPage() {
               <CardHeader>
                 <CardTitle className="text-sm">Quick Actions</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent>
+                <div className="grid grid-cols-3 gap-3">
                 {quickActions.map((action) => (
                   <button
                     key={action.label}
-                    onClick={() => toast.info(action.label)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[#1e2d40] hover:bg-[#2a3547] transition-colors text-left"
+                    onClick={action.onClick}
+                    className="flex min-h-[104px] flex-col items-center justify-center gap-2 rounded-lg bg-[#1e2d40] px-2 py-3 text-center transition-colors hover:bg-[#2a3547]"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-blue-600/15 flex items-center justify-center shrink-0">
-                      <action.icon className="w-3.5 h-3.5 text-blue-400" />
+                    <div className="w-9 h-9 rounded-lg bg-blue-600/15 flex items-center justify-center shrink-0">
+                      <action.icon className="w-4 h-4 text-blue-400" />
                     </div>
-                    <span className="text-xs text-gray-300">{action.label}</span>
+                    <span className="text-[11px] leading-tight text-gray-300">{action.label}</span>
                   </button>
                 ))}
+                </div>
               </CardContent>
             </Card>
           </div>

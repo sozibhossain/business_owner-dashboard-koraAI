@@ -1,18 +1,45 @@
-﻿/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { employeesApi, koraGoApi } from "@/lib/api";
+import { employeesApi, koraGoApi, requestsApi } from "@/lib/api";
 import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { asArray, getInitials, timeAgo } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { asArray, formatDate, getInitials, timeAgo } from "@/lib/utils";
 import { toast } from "sonner";
-import { Activity, Clock, Smartphone, Users } from "lucide-react";
+import {
+  ArrowRight,
+  Bell,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  CircleHelp,
+  ClipboardCheck,
+  Coffee,
+  KeyRound,
+  MessageCircle,
+  MoreHorizontal,
+  Plus,
+  QrCode,
+  Send,
+  Settings,
+  TrendingUp,
+  Users,
+  X,
+} from "lucide-react";
 
 const statusVariant: Record<string, any> = {
   active: "success",
@@ -20,8 +47,96 @@ const statusVariant: Record<string, any> = {
   disabled: "destructive",
 };
 
+const requestLabels: Record<string, string> = {
+  time_off: "Time Off Request",
+  break_adjustment: "Break Adjustment",
+  schedule_change: "Schedule Change",
+  shift_swap: "Shift Swap",
+};
+
+const SparkLine = ({ color = "#0ea5e9" }: { color?: string }) => (
+  <svg viewBox="0 0 96 36" className="h-10 w-20 shrink-0" preserveAspectRatio="none">
+    <path
+      d="M2 28 C10 21 15 22 22 16 S34 30 42 20 S55 4 64 16 S78 20 94 3"
+      fill="none"
+      stroke={color}
+      strokeWidth="2.2"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+const MiniPhone = ({ requestsCount }: { requestsCount: number }) => (
+  <div className="mx-auto w-[196px] rounded-[34px] border-[7px] border-black bg-[#07111f] p-3 shadow-[0_0_34px_rgba(37,99,235,0.22)]">
+    <div className="mx-auto -mt-1 mb-3 h-4 w-20 rounded-b-2xl bg-black" />
+    <div className="mb-5 flex items-start justify-between">
+      <div>
+        <p className="text-[10px] text-gray-300">Good morning,</p>
+        <p className="text-lg font-bold leading-none text-white">Max!</p>
+      </div>
+      <Bell className="h-4 w-4 text-gray-300" />
+    </div>
+    <div className="rounded-xl border border-[#1e2d40] bg-[#0d1a2d] p-3">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-[10px] font-semibold text-white">Today's Schedule</p>
+        <p className="text-[9px] text-blue-400">{requestsCount || 3} Appointments</p>
+      </div>
+      {[
+        ["10:00 AM", "Haircut", "John Doe"],
+        ["11:30 AM", "Beard Trim", "Michael Smith"],
+        ["1:00 PM", "Haircut", "David Johnson"],
+      ].map((item) => (
+        <div key={item[0]} className="mb-2 rounded-lg bg-[#07111f] px-2 py-2 last:mb-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[9px] font-medium text-gray-200">{item[0]}</p>
+            <div className="min-w-0 text-right">
+              <p className="truncate text-[9px] font-semibold text-gray-200">{item[1]}</p>
+              <p className="truncate text-[8px] text-gray-500">{item[2]}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+      <button className="mt-2 w-full rounded-lg bg-[#101c31] py-2 text-[9px] text-gray-200">
+        View full schedule
+      </button>
+    </div>
+    <div className="mt-4">
+      <p className="mb-2 text-[10px] font-semibold text-white">Quick Actions</p>
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          [MessageCircle, "Request", "bg-purple-500/20 text-purple-300"],
+          [CalendarDays, "Calendar", "bg-blue-500/20 text-blue-300"],
+          [ClipboardCheck, "Tasks", "bg-emerald-500/20 text-emerald-300"],
+          [Bell, "Inbox", "bg-orange-500/20 text-orange-300"],
+        ].map(([Icon, label, tone]) => (
+          <div key={String(label)} className="flex flex-col items-center gap-1">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${tone}`}>
+              <Icon className="h-3.5 w-3.5" />
+            </div>
+            <span className="text-[8px] text-gray-400">{String(label)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+const QrPattern = () => (
+  <div className="grid h-24 w-24 grid-cols-7 gap-1 rounded-xl border border-blue-400/50 bg-white p-2 shadow-[0_0_18px_rgba(59,130,246,0.35)]">
+    {Array.from({ length: 49 }).map((_, index) => {
+      const filled = [0, 1, 2, 4, 5, 6, 7, 14, 21, 28, 35, 42, 43, 44, 9, 10, 16, 17, 24, 30, 32, 33, 36, 38, 40, 45, 48].includes(index);
+      return <span key={index} className={filled ? "rounded-sm bg-black" : "rounded-sm bg-white"} />;
+    })}
+  </div>
+);
+
+const normalizeEmployee = (entry: any) => entry.old_employee_id || {};
+const employeeName = (entry: any) => normalizeEmployee(entry)?.name || "Employee";
+const requestName = (request: any) => request.employees_id?.name || "Employee";
+
 export default function KoraGoPage() {
   const queryClient = useQueryClient();
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   const { data: overviewResponse, isLoading: overviewLoading } = useQuery({
     queryKey: ["kora-go-overview"],
@@ -53,6 +168,7 @@ export default function KoraGoPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kora-go-overview"] });
       queryClient.invalidateQueries({ queryKey: ["kora-go-settings"] });
+      setInviteModalOpen(false);
       toast.success("Invitation sent");
     },
     onError: (error: any) =>
@@ -72,12 +188,25 @@ export default function KoraGoPage() {
       toast.error(error?.response?.data?.message || "Failed to update access"),
   });
 
+  const requestMutation = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: "approve" | "reject" }) =>
+      action === "approve" ? requestsApi.approve(id) : requestsApi.reject(id),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["kora-go-app-requests"] });
+      toast.success(`Request ${variables.action === "approve" ? "approved" : "rejected"}`);
+    },
+    onError: (error: any) =>
+      toast.error(error?.response?.data?.message || "Failed to update request"),
+  });
+
   const overview = overviewResponse?.data || {};
   const summary = overview.summary || {};
-  const accessEntries = useMemo(() => asArray(overview.employees), [overview.employees]);
+  const accessEntries = useMemo(() => {
+    const settingsEntries = asArray(settingsResponse?.data?.employees);
+    return settingsEntries.length ? settingsEntries : asArray(overview.employees);
+  }, [overview.employees, settingsResponse?.data?.employees]);
   const liveActivity = asArray(activityResponse?.data?.currentlyActive);
   const appRequests = asArray(requestsResponse?.data);
-  const settings = settingsResponse?.data || {};
   const employees = useMemo(() => asArray(employeesResponse?.data), [employeesResponse?.data]);
 
   const invitedUserIds = useMemo(
@@ -93,300 +222,412 @@ export default function KoraGoPage() {
 
   const stats = [
     {
-      label: "Employees With Access",
+      label: "Employees with App Access",
       value: summary.totalWithAccess || 0,
-      helper: `${summary.pendingInvites || 0} invite(s) pending`,
+      helper: `${summary.activeEmployeesCount || 0} active users`,
       icon: Users,
-      color: "bg-blue-600",
+      tone: "bg-purple-500/20 text-purple-300",
+      spark: null,
     },
     {
       label: "Active Now",
       value: summary.activeNow || 0,
       helper: `${activityResponse?.data?.activeInLastHour || 0} active in the last hour`,
-      icon: Activity,
-      color: "bg-emerald-600",
+      icon: CheckCircle2,
+      tone: "bg-emerald-500/20 text-emerald-300",
+      spark: "#22c55e",
     },
     {
-      label: "Activity Today",
+      label: "Pending Invites",
+      value: summary.pendingInvites || 0,
+      helper: "Send invitations",
+      icon: Send,
+      tone: "bg-orange-500/20 text-orange-300",
+      spark: null,
+    },
+    {
+      label: "App Activity Today",
       value: summary.appActivityToday || 0,
-      helper: `${activityResponse?.data?.activeInLastDay || 0} active in the last 24h`,
-      icon: Smartphone,
-      color: "bg-purple-600",
+      helper: `${activityResponse?.data?.activeInLastDay || 0} active in 24h`,
+      icon: TrendingUp,
+      tone: "bg-blue-500/20 text-blue-300",
+      spark: "#0ea5e9",
     },
-    {
-      label: "Pending App Requests",
-      value: appRequests.length,
-      helper: "Requests submitted from the mobile app",
-      icon: Clock,
-      color: "bg-amber-600",
-    },
+  ];
+
+  const shortcuts = [
+    { icon: Settings, title: "App Settings", sub: "Manage preferences", tone: "bg-blue-500/15 text-blue-400" },
+    { icon: Bell, title: "Notifications", sub: "Manage alerts", tone: "bg-red-500/15 text-red-400" },
+    { icon: ClipboardCheck, title: "Activity Report", sub: "View app usage", tone: "bg-emerald-500/15 text-emerald-400" },
+    { icon: CircleHelp, title: "Help Center", sub: "Get support", tone: "bg-sky-500/15 text-sky-400" },
   ];
 
   return (
     <div>
       <Header
         title="Kora Go"
-        subtitle="Manage employee app access, live activity, and mobile requests using backend data."
+        subtitle="Manage your mobile app, control access and monitor your team in real time."
       />
-      <div className="space-y-5 p-3 sm:p-4 lg:p-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {overviewLoading
-            ? Array.from({ length: 4 }).map((_, index) => (
-                <Card key={index}>
-                  <CardContent className="pt-4">
-                    <Skeleton className="h-12 w-full" />
-                  </CardContent>
-                </Card>
-              ))
-            : stats.map((item) => (
-                <Card key={item.label}>
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-9 h-9 rounded-lg ${item.color} flex items-center justify-center shrink-0`}
-                      >
-                        <item.icon className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-white">{item.value}</p>
-                        <p className="text-[10px] text-gray-400">{item.label}</p>
-                        <p className="text-[10px] text-emerald-400">{item.helper}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div className="lg:col-span-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Access Management</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {overviewLoading ? (
-                  Array.from({ length: 4 }).map((_, index) => (
-                    <Skeleton key={index} className="h-20 w-full" />
-                  ))
-                ) : accessEntries.length === 0 ? (
-                  <p className="text-sm text-gray-500">No employees have Kora Go access yet.</p>
-                ) : (
-                  accessEntries.map((entry: any) => (
-                    <div
-                      key={entry._id}
-                      className="rounded-xl border border-[#1e2d40] bg-[#0d1a2d] p-4"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Avatar className="w-10 h-10">
-                            <AvatarFallback>
-                              {getInitials(entry.old_employee_id?.name || "EM")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-100 truncate">
-                              {entry.old_employee_id?.name || "Employee"}
-                            </p>
-                            <p className="text-xs text-gray-400 truncate">
-                              {entry.old_employee_id?.email || "No email"}
-                            </p>
-                            <p className="text-[10px] text-gray-500">
-                              {entry.role || entry.old_employee_id?.position || "Employee"}{" "}
-                              {entry.appVersion ? `â€¢ app ${entry.appVersion}` : ""}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant={statusVariant[entry.status] || "secondary"} className="text-[10px]">
-                            {entry.status}
-                          </Badge>
-                          {entry.status !== "active" ? (
-                            <Button
-                              size="sm"
-                              className="h-7 text-[10px]"
-                              disabled={accessMutation.isPending}
-                              onClick={() =>
-                                accessMutation.mutate({ id: String(entry._id), status: "active" })
-                              }
-                            >
-                              Enable
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-[10px]"
-                              disabled={accessMutation.isPending}
-                              onClick={() =>
-                                accessMutation.mutate({ id: String(entry._id), status: "disabled" })
-                              }
-                            >
-                              Disable
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 text-xs">
-                        <div className="rounded-lg bg-[#1e2d40] p-2">
-                          <p className="text-[10px] text-gray-500">Last Active</p>
-                          <p className="text-gray-200">
-                            {entry.lastActive ? timeAgo(entry.lastActive) : "Never"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg bg-[#1e2d40] p-2">
-                          <p className="text-[10px] text-gray-500">Activated</p>
-                          <p className="text-gray-200">
-                            {entry.activatedAt ? timeAgo(entry.activatedAt) : "Not activated"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg bg-[#1e2d40] p-2">
-                          <p className="text-[10px] text-gray-500">Invite Expiry</p>
-                          <p className="text-gray-200">
-                            {entry.inviteTokenExpiry ? timeAgo(entry.inviteTokenExpiry) : "N/A"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg bg-[#1e2d40] p-2">
-                          <p className="text-[10px] text-gray-500">Device</p>
-                          <p className="text-gray-200">
-                            {entry.deviceInfo?.platform || entry.deviceInfo?.deviceName || "Unknown"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Live App Activity</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {activityLoading ? (
-                  Array.from({ length: 3 }).map((_, index) => (
-                    <Skeleton key={index} className="h-16 w-full" />
-                  ))
-                ) : liveActivity.length === 0 ? (
-                  <p className="text-sm text-gray-500">No recent mobile activity found.</p>
-                ) : (
-                  liveActivity.map((activity: any) => (
-                    <div key={activity.employee?.id || activity.lastActive} className="flex items-center gap-3 py-2 border-b border-[#1e2d40] last:border-0">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="text-xs">
-                          {getInitials(activity.employee?.name || "EM")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-200">
-                          {activity.employee?.name || "Employee"}
-                        </p>
-                        <p className="text-[10px] text-gray-500">
-                          {activity.employee?.position || "Employee"}{" "}
-                          {activity.appVersion ? `â€¢ version ${activity.appVersion}` : ""}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant={statusVariant[activity.status] || "secondary"} className="text-[10px]">
-                          {activity.status}
-                        </Badge>
-                        <p className="text-[10px] text-gray-500 mt-1">
-                          {activity.lastActive ? timeAgo(activity.lastActive) : "Never"}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+      <Dialog open={inviteModalOpen} onOpenChange={setInviteModalOpen}>
+        <DialogContent className="max-w-3xl p-0">
+          <DialogHeader className="border-b border-[#1e2d40] px-5 py-4">
+            <DialogTitle className="text-base">Invite Employee</DialogTitle>
+            <DialogDescription>
+              Choose an employee to send a Kora Go mobile app invitation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto px-5 pb-5">
+            {employeesAvailableToInvite.length === 0 ? (
+              <p className="rounded-xl border border-[#1e2d40] bg-[#07111f] py-10 text-center text-sm text-gray-500">
+                All employees already have Kora Go records.
+              </p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {employeesAvailableToInvite.map((employee: any) => (
+                  <button
+                    key={employee._id}
+                    type="button"
+                    disabled={inviteMutation.isPending}
+                    onClick={() => inviteMutation.mutate(String(employee._id))}
+                    className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] px-3 py-2.5 text-left transition-colors hover:border-blue-500/50 hover:bg-[#10213a] disabled:opacity-60"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-semibold text-white">
+                        {employee.userId?.name || employee.name || "Employee"}
+                      </span>
+                      <span className="block truncate text-[10px] text-gray-500">
+                        {employee.position || employee.role || "Employee"}
+                      </span>
+                    </span>
+                    <Send className="h-4 w-4 shrink-0 text-blue-400" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+        </DialogContent>
+      </Dialog>
+      <div className="space-y-3 p-3 sm:p-4 lg:p-6">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_370px]">
+          <div className="min-w-0 space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {overviewLoading
+                ? Array.from({ length: 4 }).map((_, index) => (
+                    <Card key={index}>
+                      <CardContent className="p-4">
+                        <Skeleton className="h-20 w-full" />
+                      </CardContent>
+                    </Card>
+                  ))
+                : stats.map((item) => (
+                    <Card key={item.label} className="overflow-hidden bg-[#091526]">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-start gap-3">
+                            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${item.tone}`}>
+                              <item.icon className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-semibold leading-snug text-gray-100">{item.label}</p>
+                              <p className="mt-2 text-3xl font-bold leading-none text-white">{item.value}</p>
+                              <p className="mt-2 text-[11px] text-gray-400">{item.helper}</p>
+                            </div>
+                          </div>
+                          {item.spark ? <SparkLine color={item.spark} /> : null}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+            </div>
 
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Invite Employees</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {employeesAvailableToInvite.slice(0, 5).map((employee: any) => (
-                  <div key={employee._id} className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-gray-200 truncate">
-                        {employee.userId?.name || "Employee"}
-                      </p>
-                      <p className="text-[10px] text-gray-500 truncate">
-                        {employee.position || "Employee"}
-                      </p>
+            <div className="grid grid-cols-1 gap-3 2xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+              <Card className="min-w-0 bg-[#091526]">
+                <CardContent className="p-0">
+                  <div className="flex flex-col gap-3 border-b border-[#1e2d40] p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="text-base font-semibold text-white">Access Management</h2>
+                      <p className="mt-1 text-xs text-gray-400">Manage app access and permissions for your team.</p>
                     </div>
                     <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-[10px]"
-                      disabled={inviteMutation.isPending}
-                      onClick={() => inviteMutation.mutate(String(employee._id))}
+                      className="h-9 gap-2 rounded-lg bg-blue-600 px-4 text-xs hover:bg-blue-700"
+                      onClick={() => setInviteModalOpen(true)}
                     >
-                      Invite
+                      <Plus className="h-4 w-4" />
+                      Invite Employee
                     </Button>
                   </div>
-                ))}
-                {employeesAvailableToInvite.length === 0 ? (
-                  <p className="text-sm text-gray-500">All employees already have Kora Go records.</p>
-                ) : null}
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Pending App Requests</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[760px] text-left">
+                      <thead className="border-b border-[#1e2d40] text-[11px] uppercase text-gray-500">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Employee</th>
+                          <th className="px-4 py-3 font-medium">Status</th>
+                          <th className="px-4 py-3 font-medium">Role</th>
+                          <th className="px-4 py-3 font-medium">Last Active</th>
+                          <th className="px-4 py-3 text-right font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#1e2d40]">
+                        {overviewLoading
+                          ? Array.from({ length: 5 }).map((_, index) => (
+                              <tr key={index}>
+                                <td colSpan={5} className="px-4 py-4">
+                                  <Skeleton className="h-12 w-full" />
+                                </td>
+                              </tr>
+                            ))
+                          : accessEntries.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-500">
+                                  No employees have Kora Go access yet.
+                                </td>
+                              </tr>
+                            )
+                          : accessEntries.slice(0, 5).map((entry: any) => {
+                              const name = employeeName(entry);
+                              const status = String(entry.status || "disabled").toLowerCase();
+                              return (
+                                <tr key={entry._id} className="hover:bg-[#0d1a2d]/60">
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center gap-3">
+                                      <div className="relative">
+                                        <Avatar className="h-10 w-10">
+                                          <AvatarFallback className="text-xs">{getInitials(name)}</AvatarFallback>
+                                        </Avatar>
+                                        {status === "active" ? (
+                                          <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#091526] bg-emerald-400" />
+                                        ) : null}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-gray-100">{name}</p>
+                                        <p className="truncate text-[11px] text-gray-500">
+                                          {normalizeEmployee(entry)?.email || "No email"}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <Badge variant={statusVariant[status] || "secondary"} className="capitalize">
+                                      <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${status === "active" ? "bg-emerald-400" : status === "invited" ? "bg-amber-400" : "bg-red-400"}`} />
+                                      {status}
+                                    </Badge>
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-300">
+                                    {entry.role || normalizeEmployee(entry)?.position || "Employee"}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <p className={status === "invited" ? "text-sm text-amber-400" : "text-sm text-emerald-400"}>
+                                      {status === "invited" ? "Invited" : entry.lastActive ? "Online" : "--"}
+                                    </p>
+                                    <p className="text-[11px] text-gray-500">
+                                      {entry.lastActive ? timeAgo(entry.lastActive) : entry.inviteTokenExpiry ? `Expires ${formatDate(entry.inviteTokenExpiry)}` : "--"}
+                                    </p>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        size="icon"
+                                        variant="outline"
+                                        className="h-8 w-8 rounded-lg"
+                                        disabled={accessMutation.isPending}
+                                        onClick={() =>
+                                          accessMutation.mutate({
+                                            id: String(entry._id),
+                                            status: status === "active" ? "disabled" : "active",
+                                          })
+                                        }
+                                        title={status === "active" ? "Disable access" : "Enable access"}
+                                      >
+                                        {status === "active" ? <X className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+                                      </Button>
+                                      <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg" title="Access key">
+                                        <KeyRound className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg" title="More actions">
+                                        <MoreHorizontal className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="border-t border-[#1e2d40] px-4 py-3 text-center">
+                    <button className="inline-flex items-center gap-2 text-xs font-medium text-blue-400 hover:text-blue-300">
+                      View all employees <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-[#091526]">
+                <CardContent className="p-0">
+                  <div className="border-b border-[#1e2d40] p-4">
+                    <h2 className="text-base font-semibold text-white">Live App Activity</h2>
+                    <p className="mt-1 text-xs text-gray-400">Real-time activity from your team in the app.</p>
+                  </div>
+                  <div className="divide-y divide-[#1e2d40] p-4 pt-2">
+                    {activityLoading
+                      ? Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="my-3 h-12 w-full" />)
+                      : liveActivity.length === 0
+                        ? <p className="py-8 text-center text-sm text-gray-500">No recent mobile activity found.</p>
+                        : liveActivity.slice(0, 5).map((activity: any, index) => {
+                            const Icon = [CheckCircle2, CalendarDays, ClipboardCheck, Coffee, CalendarDays][index % 5];
+                            const tones = ["bg-emerald-500/15 text-emerald-400", "bg-purple-500/15 text-purple-400", "bg-blue-500/15 text-blue-400", "bg-orange-500/15 text-orange-400", "bg-purple-500/15 text-purple-400"];
+                            return (
+                              <div key={`${activity.employee?.id || index}-${activity.lastActive}`} className="flex items-center gap-3 py-3">
+                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tones[index % tones.length]}`}>
+                                  <Icon className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-semibold text-gray-100">{activity.employee?.name || "Employee"}</p>
+                                  <p className="truncate text-[11px] text-gray-400">
+                                    {index === 1 ? "Created request" : index === 2 ? "Completed task" : index === 3 ? "Started break" : "Checked in"}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[11px] text-gray-400">{activity.lastActive ? timeAgo(activity.lastActive) : "Never"}</p>
+                                  <span className={`mt-1 inline-block h-1.5 w-1.5 rounded-full ${index % 3 === 0 ? "bg-emerald-400" : index % 3 === 1 ? "bg-purple-400" : "bg-blue-400"}`} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                  </div>
+                  <div className="border-t border-[#1e2d40] px-4 py-3 text-center">
+                    <button className="inline-flex items-center gap-2 text-xs font-medium text-blue-400 hover:text-blue-300">
+                      View all activity <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="bg-[#091526]">
+              <CardContent className="p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-white">Requests from App</h2>
+                    <p className="mt-1 text-xs text-gray-400">Manage requests submitted by your team.</p>
+                  </div>
+                  <button className="inline-flex items-center gap-2 text-xs font-medium text-blue-400 hover:text-blue-300">
+                    View all requests <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
                 {appRequests.length === 0 ? (
-                  <p className="text-sm text-gray-500">No pending requests from the app.</p>
+                  <p className="rounded-xl border border-[#1e2d40] bg-[#07111f] py-10 text-center text-sm text-gray-500">
+                    No pending requests from the app.
+                  </p>
                 ) : (
-                  appRequests.slice(0, 6).map((request: any) => (
-                    <div key={request._id} className="rounded-lg bg-[#1e2d40] p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium text-gray-200">
-                          {request.employees_id?.name || "Employee"}
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {appRequests.slice(0, 3).map((request: any) => (
+                      <div key={request._id} className="rounded-xl border border-[#1e2d40] bg-[#07111f] p-4">
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback className="text-xs">{getInitials(requestName(request))}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-gray-100">{requestName(request)}</p>
+                              <p className="truncate text-[11px] text-gray-400">
+                                {requestLabels[request.type] || String(request.type || "Request").replace(/_/g, " ")}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant="warning" className="shrink-0 text-[10px]">Pending</Badge>
+                        </div>
+                        <p className="min-h-10 text-xs leading-relaxed text-gray-400">
+                          {request.reason || request.dateRange?.start
+                            ? `${request.dateRange?.start ? formatDate(request.dateRange.start) : ""}${request.dateRange?.end ? ` - ${formatDate(request.dateRange.end)}` : ""}`
+                            : "No additional details provided."}
                         </p>
-                        <Badge variant="warning" className="text-[10px]">
-                          {request.type}
-                        </Badge>
+                        <div className="mt-4 grid grid-cols-3 gap-2">
+                          <Button variant="outline" className="h-8 rounded-lg text-[11px]">View</Button>
+                          <Button
+                            className="h-8 rounded-lg bg-emerald-600/15 text-[11px] text-emerald-400 hover:bg-emerald-600/25"
+                            disabled={requestMutation.isPending}
+                            onClick={() => requestMutation.mutate({ id: String(request._id), action: "approve" })}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            className="h-8 rounded-lg bg-red-600/15 text-[11px] text-red-400 hover:bg-red-600/25"
+                            disabled={requestMutation.isPending}
+                            onClick={() => requestMutation.mutate({ id: String(request._id), action: "reject" })}
+                          >
+                            Reject
+                          </Button>
+                        </div>
                       </div>
-                      <p className="text-[10px] text-gray-500 mt-1">
-                        {request.reason || "No reason provided"}
-                      </p>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </CardContent>
             </Card>
+          </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">App Configuration</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-xs">
-                <div className="flex justify-between py-1 border-b border-[#1e2d40]">
-                  <span className="text-gray-500">App Version</span>
-                  <span className="text-gray-200">{settings.appConfig?.version || "N/A"}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-[#1e2d40]">
-                  <span className="text-gray-500">Minimum Version</span>
-                  <span className="text-gray-200">{settings.appConfig?.minVersion || "N/A"}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                  <span className="text-gray-500">Expired Invites</span>
-                  <span className="text-gray-200">{settings.summary?.expiredInvites || 0}</span>
+          <aside className="space-y-3">
+            <Card className="bg-[#091526]">
+              <CardContent className="p-4">
+                <h2 className="text-base font-semibold text-white">Mobile App Preview</h2>
+                <p className="mt-1 text-xs text-gray-400">See how your team experiences Kora Go.</p>
+                <div className="mt-5">
+                  <MiniPhone requestsCount={appRequests.length} />
                 </div>
               </CardContent>
             </Card>
-          </div>
+
+            <Card className="bg-[#091526]">
+              <CardContent className="p-4">
+                <h2 className="mb-3 text-base font-semibold text-white">App Shortcuts</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  {shortcuts.map((shortcut) => (
+                    <button
+                      key={shortcut.title}
+                      className="flex items-center gap-3 rounded-xl border border-[#1e2d40] bg-[#07111f] p-3 text-left transition-colors hover:border-blue-500/40"
+                    >
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${shortcut.tone}`}>
+                        <shortcut.icon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold text-gray-100">{shortcut.title}</span>
+                        <span className="block truncate text-[10px] text-gray-500">{shortcut.sub}</span>
+                      </span>
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-500" />
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-[#091526]">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <h2 className="text-base font-semibold text-white">Get the Kora Go App</h2>
+                    <p className="mt-2 text-xs leading-relaxed text-gray-400">
+                      Scan the QR code to download for your team.
+                    </p>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <span className="rounded-lg border border-[#1e2d40] bg-black px-3 py-2 text-[10px] font-semibold text-white">
+                        App Store
+                      </span>
+                      <span className="rounded-lg border border-[#1e2d40] bg-black px-3 py-2 text-[10px] font-semibold text-white">
+                        Google Play
+                      </span>
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    {summary.totalWithAccess ? <QrPattern /> : <QrCode className="h-24 w-24 rounded-xl border border-[#1e2d40] p-5 text-blue-400" />}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </aside>
         </div>
       </div>
     </div>
   );
 }
-

@@ -118,8 +118,17 @@ export const mailApi = {
 };
 
 export const koraAssistantApi = {
-  sendMessage: (data: { message: string }) => api.post("/kora-assistant", data),
-  getHistory: (params?: object) => api.get("/kora-assistant", { params }),
+  sendMessage: (data: { message: string }) => api.post("/kora-assistant/message", data),
+  getHistory: (params?: object) => api.get("/kora-assistant/history", { params }),
+  getSuggestions: () => api.get("/kora-assistant/suggestions"),
+  getCapabilities: () => api.get("/kora-assistant/capabilities"),
+  clearHistory: () => api.delete("/kora-assistant/history"),
+};
+
+export const aiDataApi = {
+  create: (data: { message: string }) => api.post("/ai-data/create-ai-data", data),
+  getAll: () => api.get("/ai-data/get-ai-data"),
+  delete: (id: string) => api.delete(`/ai-data/delete-ai-data/${id}`),
 };
 
 export const koraGoApi = {
