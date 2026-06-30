@@ -13,6 +13,7 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { KoraOrb } from "@/components/kora-orb";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -390,41 +391,6 @@ const SparkLine = ({ seed, color }: { seed: number; color: string }) => {
     </svg>
   );
 };
-
-const KoraOrb = () => (
-  <div className="relative h-[78px] w-[78px] shrink-0 select-none">
-    <div className="absolute inset-0 rounded-full bg-blue-500/15 blur-lg animate-pulse" />
-    <div
-      className="absolute inset-[3px] rounded-full border-2 border-transparent"
-      style={{
-        borderTopColor: "rgba(59,130,246,0.7)",
-        borderRightColor: "rgba(59,130,246,0.3)",
-        animation: "spin 3s linear infinite",
-      }}
-    />
-    <div className="absolute inset-[3px] rounded-full border border-blue-500/25" />
-    <div className="absolute inset-[10px] rounded-full border border-blue-400/30 animate-pulse" />
-    <div className="absolute inset-[6px] rounded-full bg-[#04091a]" />
-    <div className="absolute inset-0 flex items-center justify-center">
-      <div className="mt-0.5 flex flex-col items-center gap-[5px]">
-        <div className="flex gap-[7px]">
-          <div className="h-[7px] w-[7px] rounded-full bg-white/90" />
-          <div className="h-[7px] w-[7px] rounded-full bg-white/90" />
-        </div>
-        <svg width="18" height="8" viewBox="0 0 18 8">
-          <path
-            d="M2 2 Q9 8 16 2"
-            stroke="white"
-            strokeWidth="1.6"
-            fill="none"
-            strokeLinecap="round"
-            opacity="0.9"
-          />
-        </svg>
-      </div>
-    </div>
-  </div>
-);
 
 /* ─────────────────────────  Page  ───────────────────────── */
 
@@ -920,7 +886,7 @@ export default function TasksPage() {
           <CardContent className="p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
               <div className="flex shrink-0 items-center gap-3">
-                <KoraOrb />
+                <KoraOrb size={162} />
                 <div>
                   <p className="text-sm font-semibold text-white">Kora Insights</p>
                   <p className="text-[11px] text-gray-500">AI-powered scheduling tips</p>

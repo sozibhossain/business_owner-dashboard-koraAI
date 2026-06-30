@@ -15,6 +15,7 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { KoraOrb } from "@/components/kora-orb";
 import { getInitials, formatCurrency, asArray } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -31,6 +32,7 @@ import {
   Globe,
   ListTodo,
   BarChart3,
+  Scissors,
   Zap,
   ChevronRight,
   ArrowRight,
@@ -54,49 +56,6 @@ const SparkLine = ({ seed, color }: { seed: number; color: string }) => {
     </svg>
   );
 };
-
-/* ── Kora AI Orb ── */
-const KoraOrb = () => (
-  <div className="relative w-[88px] h-[88px] shrink-0 select-none">
-    {/* Outer ambient glow */}
-    <div className="absolute inset-0 rounded-full bg-blue-500/15 blur-lg animate-pulse" />
-    {/* Rotating ring */}
-    <div
-      className="absolute inset-[3px] rounded-full border-2 border-transparent"
-      style={{
-        borderTopColor: "rgba(59,130,246,0.7)",
-        borderRightColor: "rgba(59,130,246,0.3)",
-        animation: "spin 3s linear infinite",
-      }}
-    />
-    {/* Static outer ring */}
-    <div className="absolute inset-[3px] rounded-full border border-blue-500/25" />
-    {/* Inner glow ring */}
-    <div className="absolute inset-[10px] rounded-full border border-blue-400/30 animate-pulse" />
-    {/* Dark core */}
-    <div className="absolute inset-[6px] rounded-full bg-[#04091a]" />
-    {/* Face */}
-    <div className="absolute inset-0 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-[5px] mt-0.5">
-        <div className="flex gap-[7px]">
-          <div className="w-[7px] h-[7px] rounded-full bg-white/90" />
-          <div className="w-[7px] h-[7px] rounded-full bg-white/90" />
-        </div>
-        <svg width="18" height="8" viewBox="0 0 18 8">
-          <path d="M2 2 Q9 8 16 2" stroke="white" strokeWidth="1.6"
-            fill="none" strokeLinecap="round" opacity="0.9" />
-        </svg>
-      </div>
-    </div>
-    {/* Floating particles */}
-    <div className="absolute top-1 right-3 w-1 h-1 rounded-full bg-blue-300/70 animate-ping"
-      style={{ animationDuration: "2s", animationDelay: "0s" }} />
-    <div className="absolute bottom-2 left-2 w-1 h-1 rounded-full bg-blue-400/50 animate-ping"
-      style={{ animationDuration: "2.5s", animationDelay: "0.8s" }} />
-    <div className="absolute top-4 left-0 w-0.5 h-0.5 rounded-full bg-blue-300/60 animate-ping"
-      style={{ animationDuration: "3s", animationDelay: "1.5s" }} />
-  </div>
-);
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -135,6 +94,7 @@ export default function BusinessOwnerDashboard() {
   // hydration mismatch (React error #418) in the production build.
   const [greeting, setGreeting] = useState("Welcome");
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGreeting(getGreeting());
   }, []);
 
@@ -179,57 +139,41 @@ export default function BusinessOwnerDashboard() {
     {
       label: "New\nAppointment",
       icon: CalendarDays,
-      color: "bg-blue-600/20 text-blue-400",
-      border: "border-blue-600/20",
       onClick: () => router.push("/calendar"),
     },
     {
       label: "Create\nInvoice",
       icon: Receipt,
-      color: "bg-emerald-600/20 text-emerald-400",
-      border: "border-emerald-600/20",
       onClick: () => router.push("/accounting"),
     },
     {
       label: "Send\nMessage",
       icon: MessageSquare,
-      color: "bg-purple-600/20 text-purple-400",
-      border: "border-purple-600/20",
       onClick: () => router.push("/inbox"),
     },
     {
       label: "Manage\nEmployees",
       icon: Users,
-      color: "bg-amber-600/20 text-amber-400",
-      border: "border-amber-600/20",
       onClick: () => router.push("/employees"),
     },
     {
       label: "Manage\nServices",
-      icon: BarChart3,
-      color: "bg-cyan-600/20 text-cyan-400",
-      border: "border-cyan-600/20",
+      icon: Scissors,
       onClick: () => router.push("/services"),
     },
     {
       label: "Create\nTask",
       icon: ListTodo,
-      color: "bg-rose-600/20 text-rose-400",
-      border: "border-rose-600/20",
       onClick: () => router.push("/tasks"),
     },
     {
       label: "Settings",
       icon: Settings,
-      color: "bg-gray-600/20 text-gray-400",
-      border: "border-gray-600/20",
       onClick: () => router.push("/settings"),
     },
     {
       label: "Open\nWebsite",
       icon: Globe,
-      color: "bg-indigo-600/20 text-indigo-400",
-      border: "border-indigo-600/20",
       onClick: () => {
         if (!websiteUrl) {
           toast.info("Add your website in Settings first.");
@@ -247,67 +191,75 @@ export default function BusinessOwnerDashboard() {
     {
       label: "Today's Appointments",
       value: appointments.length,
-      compare: "vs yesterday",
+      compare: "25% vs yesterday",
       icon: Calendar,
-      color: "bg-blue-600",
-      spark: "#3b82f6",
+      color: "border-blue-400/20 bg-blue-500/20 text-[#79C1EC] shadow-[0_0_22px_rgba(59,130,246,0.35)]",
+      spark: "#79C1EC",
       seed: 11,
+      positive: true,
     },
     {
       label: "This Week",
       value: accountingData?.appointmentsWeek ?? appointments.length,
-      compare: "vs last week",
+      compare: "18% vs last week",
       icon: TrendingUp,
-      color: "bg-purple-600",
-      spark: "#a855f7",
+      color: "border-blue-500/25 bg-blue-600/25 text-[#79C1EC] shadow-[0_0_22px_rgba(37,99,235,0.35)]",
+      spark: "#79C1EC",
       seed: 23,
+      positive: true,
     },
     {
       label: "Active Employees",
       value: activeEmployees.length,
-      compare: `${employees.length} total`,
+      compare: "No change",
       icon: Users,
-      color: "bg-emerald-600",
+      color: "border-emerald-400/20 bg-emerald-500/25 text-emerald-300 shadow-[0_0_22px_rgba(16,185,129,0.35)]",
       spark: "#10b981",
       seed: 7,
+      positive: false,
     },
     {
       label: "Revenue (This Month)",
       value: formatCurrency(accountingData?.revenueMonth || 0),
-      compare: "vs last month",
+      compare: "32% vs last month",
       icon: DollarSign,
-      color: "bg-amber-600",
-      spark: "#f59e0b",
+      color: "border-blue-400/20 bg-blue-500/20 text-[#79C1EC] shadow-[0_0_22px_rgba(59,130,246,0.35)]",
+      spark: "#79C1EC",
       seed: 31,
+      positive: true,
     },
   ];
 
   const koraSuggestions = useMemo(
     () => [
       {
-        icon: "📈",
+        icon: BarChart3,
         iconBg: "bg-blue-600/20",
+        iconColor: "text-[#79C1EC]",
         title: "Increase prices on weekends?",
-        sub: "You could earn €230 more per week.",
+        sub: "You could earn more per week.",
         color: "border-[#1e2d40]",
       },
       {
-        icon: "💬",
+        icon: MessageSquare,
         iconBg: "bg-indigo-600/20",
+        iconColor: "text-[#79C1EC]",
         title: `${pendingRequests.length || 2} messages need a reply`,
         sub: "Average response time: 2h 15m",
         color: "border-[#1e2d40]",
       },
       {
-        icon: "🎁",
+        icon: Sparkles,
         iconBg: "bg-emerald-600/20",
-        title: "Loyalty program idea",
+        iconColor: "text-emerald-300",
+        title: "Check your SEO",
         sub: "Reward clients after 5 visits.",
         color: "border-[#1e2d40]",
       },
       {
-        icon: "📅",
+        icon: CalendarDays,
         iconBg: "bg-amber-600/20",
+        iconColor: "text-amber-300",
         title: "Slow day this Thursday",
         sub: "Add a promo to fill your schedule.",
         color: "border-[#1e2d40]",
@@ -347,7 +299,7 @@ export default function BusinessOwnerDashboard() {
         {/* ── Greeting ── */}
         <div>
           <h2 className="text-[22px] font-bold text-white">
-            {greeting}, {userName}! 👋
+            {greeting}, {userName}!
           </h2>
           <p className="text-sm text-gray-400 mt-0.5">
             Here&apos;s what&apos;s happening with your business today.
@@ -355,25 +307,28 @@ export default function BusinessOwnerDashboard() {
         </div>
 
         {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((item) => (
-            <Card key={item.label}>
-              <CardContent className="pt-4 pb-3 px-4">
-                <div className="flex items-start justify-between gap-1">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className={`w-10 h-10 rounded-xl ${item.color} flex items-center justify-center shrink-0`}>
-                      <item.icon className="w-5 h-5 text-white" />
+            <Card key={item.label} className="bg-gradient-to-br from-[#0c1b2e] to-[#071321]">
+              <CardContent className="min-h-[130px] px-5 py-5">
+                <div className="flex h-full items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-4">
+                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${item.color}`}>
+                      <item.icon className="h-6 w-6" strokeWidth={1.9} />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] text-gray-400 leading-tight mb-0.5">{item.label}</p>
-                      <p className="text-2xl font-extrabold text-white leading-none">{item.value}</p>
-                      <p className="text-[10px] text-emerald-400 mt-1 leading-tight flex items-center gap-0.5">
-                        <span className="text-emerald-400">↑</span>
+                      <p className="mb-3 text-sm font-medium leading-tight text-gray-100">{item.label}</p>
+                      <p className="text-3xl font-semibold leading-none text-white">{item.value}</p>
+                      <p className={`mt-4 flex items-center gap-1 text-xs leading-tight ${item.positive ? "text-emerald-400" : "text-gray-400"}`}>
+                        <span>{item.positive ? "+" : "-"}</span>
+                        <span className="hidden" />
                         {item.compare}
                       </p>
                     </div>
                   </div>
-                  <SparkLine seed={item.seed} color={item.spark} />
+                  <div className="mt-auto pb-1">
+                    <SparkLine seed={item.seed} color={item.spark} />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -381,24 +336,24 @@ export default function BusinessOwnerDashboard() {
         </div>
 
         {/* ── Today's Schedule + Kora Assistant ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
 
           {/* Today's Schedule */}
-          <Card>
-            <CardHeader className="pb-2">
+          <Card className="bg-gradient-to-br from-[#071321] to-[#09192b]">
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4 text-gray-400" />
-                  <CardTitle className="text-sm">Today&apos;s Schedule</CardTitle>
+                  <CalendarDays className="h-5 w-5 text-gray-200" />
+                  <CardTitle className="text-lg font-semibold text-white">Today&apos;s Schedule</CardTitle>
                 </div>
-                <div className="flex gap-0.5 bg-[#0d1a2d] p-0.5 rounded-lg">
+                <div className="flex overflow-hidden rounded-lg border border-[#15263a] bg-[#06111f]/90 p-0.5">
                   {(["Day", "Week", "Month"] as const).map((v) => (
                     <button
                       key={v}
                       onClick={() => setScheduleView(v)}
-                      className={`px-3 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                      className={`min-w-16 rounded-md px-4 py-1.5 text-xs font-medium transition-colors ${
                         scheduleView === v
-                          ? "bg-blue-600 text-white"
+                          ? "bg-gradient-to-b from-[#116fd8] to-[#063f92] text-white shadow-[0_0_16px_rgba(37,99,235,0.5)]"
                           : "text-gray-400 hover:text-gray-200"
                       }`}
                     >
@@ -408,7 +363,7 @@ export default function BusinessOwnerDashboard() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pb-3">
+            <CardContent className="pb-4">
               {appointments.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
                   <Calendar className="w-9 h-9 text-gray-700 mb-2" />
@@ -416,38 +371,38 @@ export default function BusinessOwnerDashboard() {
                 </div>
               ) : (
                 <>
-                  <div className="space-y-0">
+                  <div className="space-y-1">
                     {appointments.map((apt, idx) => {
                       const hour = apt.startTime?.slice(0, 5) || "--:--";
                       const isLast = idx === appointments.length - 1;
                       return (
-                        <div key={apt._id} className="flex gap-3">
+                        <div key={apt._id} className="flex gap-4">
                           {/* Time */}
-                          <div className="w-12 shrink-0 pt-1 text-right">
-                            <span className="text-[10px] text-gray-500">{hour}</span>
+                          <div className="w-12 shrink-0 pt-3 text-right">
+                            <span className="text-sm text-gray-100">{hour}</span>
                           </div>
                           {/* Timeline */}
                           <div className="flex flex-col items-center">
-                            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0 mt-1.5 ring-2 ring-blue-500/20" />
+                            <div className="mt-4 h-3 w-3 shrink-0 rounded-full bg-[#38bdf8] ring-2 ring-[#38bdf8]/20" />
                             {!isLast && (
-                              <div className="w-px flex-1 bg-[#1e2d40] my-1" />
+                              <div className="my-1 w-px flex-1 bg-[#0ea5e9]/70" />
                             )}
                           </div>
                           {/* Card */}
-                          <div className={`flex-1 flex items-start justify-between gap-2 ${!isLast ? "pb-3" : "pb-1"}`}>
+                          <div className={`flex flex-1 items-center justify-between gap-3 rounded-lg border-l-2 border-[#1fe2d0] bg-[#0d1a2d]/90 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] ${!isLast ? "mb-1" : ""}`}>
                             <div className="min-w-0">
-                              <p className="text-[13px] font-semibold text-gray-100 truncate">
+                              <p className="truncate text-sm font-semibold text-gray-100">
                                 {getGuestName(apt)}
                               </p>
-                              <p className="text-[11px] text-gray-400 truncate">
+                              <p className="truncate text-xs text-gray-400">
                                 {apt.service || String(apt.status || "Appointment").replace(/_/g, " ")}
                               </p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-[10px] text-gray-500 whitespace-nowrap">
+                              <span className="whitespace-nowrap text-xs text-gray-400">
                                 {apt.startTime?.slice(0, 5)} – {apt.endTime?.slice(0, 5)}
                               </span>
-                              <Avatar className="w-6 h-6">
+                              <Avatar className="h-7 w-7">
                                 <AvatarFallback className="text-[8px]">
                                   {getInitials(getGuestName(apt))}
                                 </AvatarFallback>
@@ -458,7 +413,7 @@ export default function BusinessOwnerDashboard() {
                       );
                     })}
                   </div>
-                  <button className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                  <button className="mx-auto mt-4 flex h-10 w-fit items-center justify-center gap-2 rounded-lg bg-[#0d1a2d] px-8 text-sm font-medium text-white transition-colors hover:bg-[#122238]">
                     View full calendar <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </>
@@ -467,38 +422,36 @@ export default function BusinessOwnerDashboard() {
           </Card>
 
           {/* Kora Assistant */}
-          <Card className="border-blue-600/20 bg-[#070f1c]">
+          <Card className="border-blue-600/20 bg-gradient-to-br from-[#071321] to-[#081a2c]">
             <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-blue-600/20 flex items-center justify-center">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                </div>
-                <CardTitle className="text-sm">Kora Assistant</CardTitle>
+              <div className="flex items-center gap-3">
+                <Sparkles className="h-6 w-6 text-[#79C1EC] drop-shadow-[0_0_10px_rgba(121,193,236,0.6)]" />
+                <CardTitle className="text-lg font-semibold text-white">Kora Assistant</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="flex gap-4">
+              <div className="grid min-h-[286px] grid-cols-1 gap-5 sm:grid-cols-[minmax(0,1fr)_220px]">
                 {/* Chat + chips */}
-                <div className="flex-1 min-w-0">
+                <div className="flex min-w-0 flex-col">
                   {showChips ? (
                     <>
-                      <p className="text-[13px] text-gray-200 mb-1">
+                      <p className="mb-5 w-fit rounded-xl border border-[#1e2d40] bg-[#0d1a2d] px-4 py-3 text-base text-gray-300">
                         Hi {userName}! How can I help you today?
                       </p>
-                      <p className="text-[11px] text-gray-500 mb-3">
+                      <p className="mb-4 text-sm font-medium text-gray-100">
                         Here are some suggestions:
                       </p>
-                      <div className="space-y-2 mb-4">
+                      <div className="mb-5 space-y-3">
                         {koraSuggestionChips.map((chip) => (
                           <button
                             key={chip.label}
                             onClick={() => sendKoraMessage(chip.label)}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#0d1a2d] hover:bg-[#1e2d40] border border-[#1e2d40] hover:border-blue-600/30 transition-all text-left"
+                            className="flex w-full items-center gap-3 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] px-4 py-3 text-left transition-all hover:border-blue-600/30 hover:bg-[#122238]"
                           >
-                            <div className="w-6 h-6 rounded-lg bg-[#1e2d40] flex items-center justify-center shrink-0">
-                              <chip.icon className="w-3.5 h-3.5 text-blue-400" />
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#101f35]">
+                              <chip.icon className="h-4 w-4 text-gray-200" />
                             </div>
-                            <span className="text-xs text-gray-300">{chip.label}</span>
+                            <span className="text-sm text-gray-100">{chip.label}</span>
                           </button>
                         ))}
                       </div>
@@ -529,27 +482,27 @@ export default function BusinessOwnerDashboard() {
                     </div>
                   )}
 
-                  <div className="flex gap-2">
+                  <div className="mt-auto flex gap-2">
                     <input
                       value={koraInput}
                       onChange={(e) => setKoraInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && sendKoraMessage()}
                       placeholder="Ask Kora anything..."
-                      className="flex-1 text-xs bg-[#0d1a2d] border border-[#1e2d40] rounded-xl px-3 py-2.5 text-gray-200 placeholder:text-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+                      className="min-h-12 flex-1 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] px-4 text-sm text-gray-200 placeholder:text-gray-500 transition-colors focus:border-blue-500 focus:outline-none"
                     />
                     <Button
                       size="icon"
-                      className="h-9 w-9 rounded-full bg-blue-600 hover:bg-blue-700"
+                      className="h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-700"
                       onClick={() => sendKoraMessage()}
                     >
-                      <Send className="w-3.5 h-3.5" />
+                      <Send className="h-5 w-5" />
                     </Button>
                   </div>
                 </div>
 
                 {/* AI Orb */}
-                <div className="hidden sm:flex items-center justify-center">
-                  <KoraOrb />
+                <div className="hidden w-50 shrink-0 items-center justify-center sm:flex">
+                  <KoraOrb size={200} />
                 </div>
               </div>
             </CardContent>
@@ -557,26 +510,27 @@ export default function BusinessOwnerDashboard() {
         </div>
 
         {/* ── Quick Actions ── */}
-        <Card>
+        <Card className="bg-gradient-to-br from-[#071321] to-[#09192b]">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-blue-400" />
-              <CardTitle className="text-sm">Quick Actions</CardTitle>
+              <Zap className="h-4 w-4 text-[#79C1EC] drop-shadow-[0_0_6px_rgba(121,193,236,0.55)]" />
+              <CardTitle className="text-lg font-semibold text-white">Quick Actions</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+          <CardContent className="px-5 pb-5 pt-0">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-8">
               {quickActions.map((action) => (
                 <button
                   key={action.label}
                   type="button"
                   onClick={action.onClick}
-                  className={`flex min-h-[106px] flex-col items-center justify-center gap-2 rounded-xl border px-2 py-4 ${action.border} bg-[#0d1a2d] transition-colors hover:bg-[#1e2d40]`}
+                  className="group flex min-h-[132px] flex-col items-center justify-center gap-3 rounded-lg border border-[#1c2c43] bg-[#0d1a2d]/90 px-3 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:border-[#79C1EC]/45 hover:bg-[#122238]"
                 >
-                  <div className={`w-10 h-10 rounded-xl border ${action.border} ${action.color} flex items-center justify-center`}>
-                    <action.icon className="w-4 h-4" />
-                  </div>
-                  <span className="text-[10px] text-gray-400 text-center leading-tight whitespace-pre-line">
+                  <action.icon
+                    className="h-11 w-11 text-[#79C1EC] drop-shadow-[0_0_9px_rgba(121,193,236,0.45)] transition-transform group-hover:scale-105"
+                    strokeWidth={1.9}
+                  />
+                  <span className="whitespace-pre-line text-center text-base font-medium leading-tight text-gray-100">
                     {action.label}
                   </span>
                 </button>
@@ -597,14 +551,16 @@ export default function BusinessOwnerDashboard() {
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {koraSuggestions.map((s) => (
+            {koraSuggestions.map((s) => {
+              const SuggestionIcon = s.icon;
+              return (
               <div
                 key={s.title}
                 className={`rounded-xl border ${s.color} bg-[#0d1a2d] p-4 cursor-pointer hover:bg-[#1e2d40] transition-colors`}
               >
                 <div className="flex items-start gap-3 mb-3">
-                  <div className={`w-9 h-9 rounded-xl ${s.iconBg} flex items-center justify-center shrink-0 text-lg leading-none`}>
-                    {s.icon}
+                  <div className={`w-9 h-9 rounded-xl ${s.iconBg} flex items-center justify-center shrink-0`}>
+                    <SuggestionIcon className={`h-4.5 w-4.5 ${s.iconColor}`} strokeWidth={1.9} />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-gray-100 leading-tight">{s.title}</p>
@@ -615,7 +571,8 @@ export default function BusinessOwnerDashboard() {
                   Take action <ChevronRight className="w-3 h-3" />
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

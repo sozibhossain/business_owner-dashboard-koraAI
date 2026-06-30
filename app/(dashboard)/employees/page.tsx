@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { KoraOrb } from "@/components/kora-orb";
 import {
   Dialog,
   DialogContent,
@@ -110,23 +111,6 @@ const SparkLine = ({ seed, color }: { seed: number; color: string }) => {
     </svg>
   );
 };
-
-const KoraOrb = () => (
-  <div className="relative h-15 w-15 shrink-0 select-none">
-    <div className="absolute inset-0 rounded-full bg-blue-500/15 blur-md animate-pulse" />
-    <div className="absolute inset-0.5 rounded-full border-2 border-transparent" style={{ borderTopColor: "rgba(59,130,246,0.7)", borderRightColor: "rgba(59,130,246,0.3)", animation: "spin 3s linear infinite" }} />
-    <div className="absolute inset-1.25 rounded-full bg-[#04091a]" />
-    <div className="absolute inset-0 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-1">
-        <div className="flex gap-1.5">
-          <div className="h-1.5 w-1.5 rounded-full bg-white/90" />
-          <div className="h-1.5 w-1.5 rounded-full bg-white/90" />
-        </div>
-        <svg width="14" height="6" viewBox="0 0 18 8"><path d="M2 2 Q9 8 16 2" stroke="white" strokeWidth="1.6" fill="none" strokeLinecap="round" opacity="0.9" /></svg>
-      </div>
-    </div>
-  </div>
-);
 
 const empName = (e: any) => e?.userId?.name || "Employee";
 
@@ -370,7 +354,7 @@ export default function EmployeesPage() {
           <CardContent className="p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
               <div className="flex shrink-0 items-center gap-3">
-                <KoraOrb />
+                <KoraOrb size={162} />
                 <p className="text-sm font-semibold text-white">Kora Insights</p>
               </div>
               <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3">

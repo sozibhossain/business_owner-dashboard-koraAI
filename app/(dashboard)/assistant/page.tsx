@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState } from "react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { aiDataApi } from "@/lib/api";
+import { KoraOrb } from "@/components/kora-orb";
 
 interface Message { id: string; role: "user" | "assistant"; content: string; time: string; }
 interface Conversation {
@@ -71,81 +72,9 @@ const fallbackConversations: Conversation[] = [
   },
 ];
 
-const KoraOrb = ({ size = 150 }: { size?: number }) => (
-  <div className="kora-orb relative shrink-0" style={{ width: size, height: size }} aria-hidden="true">
-    <style>{`
-      @keyframes koraOrbPulse {
-        0%, 100% { opacity: .62; transform: scale(.98); }
-        50% { opacity: 1; transform: scale(1.05); }
-      }
-      @keyframes koraOrbSpin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-      @keyframes koraOrbSpinReverse {
-        from { transform: rotate(360deg); }
-        to { transform: rotate(0deg); }
-      }
-      @keyframes koraOrbFloat {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-5px); }
-      }
-      @keyframes koraOrbTwinkle {
-        0%, 100% { opacity: .25; transform: scale(.7); }
-        50% { opacity: 1; transform: scale(1.15); }
-      }
-      .kora-orb-glow { animation: koraOrbPulse 2.8s ease-in-out infinite; }
-      .kora-orb-ring { animation: koraOrbPulse 2.2s ease-in-out infinite; }
-      .kora-orb-particles { animation: koraOrbSpin 18s linear infinite; transform-origin: 50% 50%; }
-      .kora-orb-particles-reverse { animation: koraOrbSpinReverse 26s linear infinite; transform-origin: 50% 50%; }
-      .kora-orb-face { animation: koraOrbFloat 3.2s ease-in-out infinite; }
-      .kora-orb-dot { animation: koraOrbTwinkle 2.4s ease-in-out infinite; }
-      @media (prefers-reduced-motion: reduce) {
-        .kora-orb-glow,
-        .kora-orb-ring,
-        .kora-orb-particles,
-        .kora-orb-particles-reverse,
-        .kora-orb-face,
-        .kora-orb-dot { animation: none; }
-      }
-    `}</style>
-    <div className="kora-orb-glow absolute inset-0 rounded-full bg-blue-500/10 blur-2xl" />
-    <div className="absolute inset-[7%] rounded-full border border-blue-400/25" />
-    <div className="kora-orb-ring absolute inset-[15%] rounded-full border-4 border-blue-400 shadow-[0_0_28px_rgba(59,130,246,0.9),inset_0_0_22px_rgba(59,130,246,0.45)]" />
-    <div className="absolute inset-[23%] rounded-full bg-[#06101f] shadow-inner" />
-    <div className="kora-orb-particles absolute inset-0">
-      {Array.from({ length: 34 }).map((_, index) => {
-        const angle = (index / 34) * Math.PI * 2;
-        const radius = size * (0.38 + (index % 5) * 0.024);
-        return (
-          <span
-            key={index}
-            className="kora-orb-dot absolute h-1 w-1 rounded-full bg-blue-400/70"
-            style={{
-              left: size / 2 + Math.cos(angle) * radius,
-              top: size / 2 + Math.sin(angle) * radius,
-              opacity: 0.35 + (index % 4) * 0.15,
-              animationDelay: `${index * 90}ms`,
-            }}
-          />
-        );
-      })}
-    </div>
-    <div className="kora-orb-particles-reverse absolute inset-[9%] rounded-full border border-dashed border-blue-400/20" />
-    <div className="absolute inset-0 flex items-center justify-center">
-      <div className="kora-orb-face mt-2 flex flex-col items-center gap-2">
-        <div className="flex gap-5">
-          <span className="h-5 w-3 rounded-full bg-white shadow-[0_0_14px_rgba(255,255,255,0.95)]" />
-          <span className="h-5 w-3 rounded-full bg-white shadow-[0_0_14px_rgba(255,255,255,0.95)]" />
-        </div>
-        <svg width="32" height="16" viewBox="0 0 32 16">
-          <path d="M7 6c4 6 14 6 18 0" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.9" />
-        </svg>
-      </div>
-    </div>
-  </div>
-);
 
+
+export { KoraOrb };
 export default function AssistantPage() {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -184,7 +113,7 @@ export default function AssistantPage() {
 
   function handleSend(text?: string) {
     const message = (text ?? input).trim();
-    if (!message) return;
+    if (!message || sendMutation.isPending) return;
     setMessages(prev => [...prev, { id: Date.now().toString(), role: "user", content: message, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]);
     sendMutation.mutate(message);
     setInput("");
@@ -220,6 +149,7 @@ export default function AssistantPage() {
                         value={input}
                       />
                       <button
+                        type="button"
                         onClick={() => handleSend()}
                         disabled={!input.trim() || sendMutation.isPending}
                         className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-blue-600 text-white disabled:opacity-50"
@@ -231,7 +161,9 @@ export default function AssistantPage() {
                       {suggestions.map((suggestion) => (
                         <button
                           key={suggestion.text}
+                          type="button"
                           onClick={() => handleSend(suggestion.text)}
+                          disabled={sendMutation.isPending}
                           className="flex items-center gap-1.5 rounded-lg border border-[#1e2d40] bg-[#0d1a2d] px-3 py-2 text-[11px] text-gray-300 transition-colors hover:bg-[#1e2d40]"
                         >
                           <suggestion.icon className="h-3.5 w-3.5 text-gray-400" />
@@ -258,7 +190,9 @@ export default function AssistantPage() {
                   {recentConversations.slice(0, 4).map((conversation, index) => (
                     <button
                       key={conversation._id || conversation.userMessage || index}
-                      onClick={() => handleSend(conversation.userMessage)}
+                      type="button"
+                      onClick={() => handleSend(conversation.userMessage || "Continue this conversation")}
+                      disabled={sendMutation.isPending}
                       className="flex w-full items-start gap-4 py-4 text-left"
                     >
                       <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-gray-300" />
@@ -307,7 +241,7 @@ export default function AssistantPage() {
                   Kora is active
                 </div>
                 <div className="flex justify-center py-1">
-                  <KoraOrb size={148} />
+                  <KoraOrb size={162} />
                 </div>
                 <p className="mt-4 text-center text-sm text-gray-400">
                   Always here to help you
@@ -331,8 +265,10 @@ export default function AssistantPage() {
               <CardContent className="space-y-2">
                 {smartSuggestions.map((suggestion) => (
                   <button
+                    type="button"
                     key={suggestion.title}
                     onClick={() => handleSend(suggestion.title)}
+                    disabled={sendMutation.isPending}
                     className="flex w-full items-center gap-3 rounded-xl bg-[#0d1a2d] p-3 text-left transition-colors hover:bg-[#1e2d40]"
                   >
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${suggestion.color}`}>
@@ -351,7 +287,7 @@ export default function AssistantPage() {
             <Card className="bg-[#091526]">
               <CardContent className="p-5">
                 <p className="text-base font-semibold text-gray-100">Learn more about Kora</p>
-                <button className="mt-4 flex w-full items-center justify-between rounded-xl bg-[#0d1a2d] px-4 py-3 text-sm text-gray-200 transition-colors hover:bg-[#1e2d40]">
+                <button type="button" className="mt-4 flex w-full items-center justify-between rounded-xl bg-[#0d1a2d] px-4 py-3 text-sm text-gray-200 transition-colors hover:bg-[#1e2d40]">
                   Explore all capabilities
                   <ArrowRight className="h-4 w-4 text-gray-400" />
                 </button>
@@ -383,4 +319,3 @@ export default function AssistantPage() {
     </div>
   );
 }
-
