@@ -2,6 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { appointmentsApi, employeesApi } from "@/lib/api";
 import { Header } from "@/components/layout/header";
@@ -10,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { KoraOrb } from "@/components/kora-orb";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowRight,
+  Bell,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
@@ -173,21 +174,22 @@ export default function EmployeesPage() {
   }, [todayAppts]);
 
   const selected = useMemo(
-    () => employees.find((e) => e._id === selectedId) || null,
+    () => employees.find((e) => e._id === selectedId) || employees[0] || null,
     [employees, selectedId]
   );
+  const selectedEmployeeId = selected?._id || null;
 
   /* selected employee detail queries */
   const { data: perfResp } = useQuery({
-    queryKey: ["employee-perf", selectedId],
-    queryFn: () => employeesApi.getPerformance(selectedId as string).then((r) => r.data.data),
-    enabled: !!selectedId && (tab === "overview" || tab === "performance"),
+    queryKey: ["employee-perf", selectedEmployeeId],
+    queryFn: () => employeesApi.getPerformance(selectedEmployeeId as string).then((r) => r.data.data),
+    enabled: !!selectedEmployeeId && (tab === "overview" || tab === "performance"),
   });
 
   const { data: schedResp } = useQuery({
-    queryKey: ["employee-schedule", selectedId],
-    queryFn: () => employeesApi.getSchedule(selectedId as string).then((r) => r.data.data),
-    enabled: !!selectedId && (tab === "overview" || tab === "schedule"),
+    queryKey: ["employee-schedule", selectedEmployeeId],
+    queryFn: () => employeesApi.getSchedule(selectedEmployeeId as string).then((r) => r.data.data),
+    enabled: !!selectedEmployeeId && (tab === "overview" || tab === "schedule"),
   });
 
   /* ── Metrics ── */
@@ -247,7 +249,8 @@ export default function EmployeesPage() {
   /* ── Mutations ── */
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["employees-all"] });
-    queryClient.invalidateQueries({ queryKey: ["employee-perf", selectedId] });
+    queryClient.invalidateQueries({ queryKey: ["employee-perf", selectedEmployeeId] });
+    queryClient.invalidateQueries({ queryKey: ["employee-schedule", selectedEmployeeId] });
   };
 
   const createMutation = useMutation({
@@ -300,47 +303,52 @@ export default function EmployeesPage() {
 
   return (
     <div>
-      <Header title="Employees" subtitle="Manage your team, track performance and optimize schedules." />
+      <Header
+        title="Employees"
+        subtitle="Manage your team, track performance and optimize schedules."
+        action={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setAttendanceOpen(true)} className="hidden h-9 gap-1.5 sm:flex">
+              <CalendarCheck className="h-4 w-4" /> Attendance
+            </Button>
+            <div className="flex overflow-hidden rounded-lg shadow-[0_0_18px_rgba(37,99,235,0.35)]">
+              <Button onClick={() => setAddOpen(true)} className="h-9 rounded-r-none gap-1.5">
+                <Plus className="h-4 w-4" /> Add Employee
+              </Button>
+              <button
+                type="button"
+                onClick={() => setAddOpen(true)}
+                className="flex h-9 w-10 items-center justify-center border-l border-blue-400/30 bg-blue-600 text-white hover:bg-blue-700"
+                aria-label="Add employee options"
+              >
+                <ChevronRight className="h-4 w-4 rotate-90" />
+              </button>
+            </div>
+          </div>
+        }
+      />
 
       <div className="space-y-5 p-3 sm:p-4 lg:p-6">
         {/* ── Heading + Add ── */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-[22px] font-bold text-white">Employees</h2>
-              <Users className="h-5 w-5 text-blue-400" />
-            </div>
-            <p className="mt-0.5 text-sm text-gray-400">Manage your team, track performance and optimize schedules.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setAttendanceOpen(true)} className="gap-1.5">
-              <CalendarCheck className="h-4 w-4" /> Attendance
-            </Button>
-            <Button onClick={() => setAddOpen(true)} className="gap-1.5">
-              <Plus className="h-4 w-4" /> Add Employee
-            </Button>
-          </div>
-        </div>
-
         {/* ── Metric cards ── */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (
                 <Card key={i}><CardContent className="p-4"><Skeleton className="h-14 w-full" /></CardContent></Card>
               ))
             : metricCards.map((m) => (
-                <Card key={m.label}>
+                <Card key={m.label} className="overflow-hidden border-[#173050] bg-gradient-to-br from-[#0c1c31] to-[#071321] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-h-[94px] items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="mb-2 flex items-center gap-2">
-                          <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${m.color}`}>
-                            <m.icon className="h-4 w-4 text-white" />
+                          <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${m.color} shadow-[0_0_24px_rgba(37,99,235,0.28)]`}>
+                            <m.icon className="h-5 w-5 text-white" />
                           </div>
-                          <p className="truncate text-[11px] text-gray-400">{m.label}</p>
+                          <p className="truncate text-xs font-medium text-gray-300">{m.label}</p>
                         </div>
-                        <p className="text-2xl font-extrabold leading-none text-white">{m.value}</p>
-                        <p className="mt-1.5 text-[10px] text-gray-500">{m.helper}</p>
+                        <p className="text-3xl font-semibold leading-none text-white">{m.value}</p>
+                        <p className="mt-3 text-[11px] text-emerald-400">{m.helper}</p>
                       </div>
                       <SparkLine seed={m.seed} color={m.spark} />
                     </div>
@@ -350,31 +358,39 @@ export default function EmployeesPage() {
         </div>
 
         {/* ── Kora Insights ── */}
-        <Card className="bg-[#070f1c]">
+        <Card className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_8%_50%,rgba(14,165,233,0.16),transparent_28%),linear-gradient(135deg,#071321,#0a182a)]">
           <CardContent className="p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-              <div className="flex shrink-0 items-center gap-3">
-                <KoraOrb size={162} />
-                <p className="text-sm font-semibold text-white">Kora Insights</p>
+              <div className="flex min-w-56 shrink-0 items-center gap-4">
+                <Image
+                  src="/kora.png"
+                  alt="Kora"
+                  width={92}
+                  height={92}
+                  unoptimized
+                  className="kora-image h-[92px] w-[92px] object-contain"
+                />
+                <p className="text-base font-semibold text-white">Kora Insights</p>
               </div>
               <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
                 {insights.length ? (
                   insights.map((ins, i) => (
-                    <div key={i} className="flex items-start gap-2.5 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] px-3 py-2.5">
-                      <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${ins.tint}`}>
-                        <ins.icon className="h-3.5 w-3.5" />
+                    <button key={i} className="flex min-h-14 items-center gap-3 rounded-xl border border-[#173050] bg-[#0d1a2d]/90 px-3 py-2.5 text-left transition-colors hover:bg-[#122238]">
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${ins.tint}`}>
+                        <ins.icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-[11px] font-medium text-gray-200">{ins.title}</p>
                         <p className="truncate text-[10px] text-gray-500">{ins.sub}</p>
                       </div>
-                    </div>
+                      <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0 text-gray-500" />
+                    </button>
                   ))
                 ) : (
                   <p className="col-span-full py-3 text-center text-xs text-gray-500">No insights yet.</p>
                 )}
               </div>
-              <button className="flex shrink-0 items-center gap-1.5 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] px-3 py-2 text-xs text-blue-400 hover:bg-[#1e2d40] lg:self-center">
+              <button className="flex shrink-0 items-center gap-1.5 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/80 px-4 py-2.5 text-xs text-gray-200 hover:bg-[#1e2d40] lg:self-center">
                 View all insights <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -382,39 +398,39 @@ export default function EmployeesPage() {
         </Card>
 
         {/* ── Toolbar ── */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-50 flex-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-60 flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employees..." className="h-9 pl-9" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employees..." className="h-10 rounded-lg border-[#1e2d40] bg-[#0d1526] pl-9 text-sm" />
           </div>
-          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="h-9 rounded-lg border border-[#2a3547] bg-[#0d1526] px-3 text-xs text-gray-300 focus:outline-none">
+          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-4 text-xs text-gray-300 focus:outline-none">
             <option value="all">All Roles</option>
             {roles.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-9 rounded-lg border border-[#2a3547] bg-[#0d1526] px-3 text-xs text-gray-300 focus:outline-none">
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-4 text-xs text-gray-300 focus:outline-none">
             <option value="all">All Status</option>
             <option value="working">Working</option>
             <option value="on_break">On Break</option>
             <option value="on_leave">On Leave</option>
             <option value="off">Off</option>
           </select>
-          <button className="flex h-9 items-center gap-1.5 rounded-lg border border-[#1e2d40] px-3 text-xs text-gray-300 hover:bg-[#1e2d40]">
+          <button className="flex h-10 items-center gap-1.5 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-4 text-xs text-gray-300 hover:bg-[#1e2d40]">
             <Filter className="h-3.5 w-3.5" /> Filters
           </button>
-          <div className="flex h-9 items-center gap-0.5 rounded-lg bg-[#0d1a2d] p-0.5">
-            <button onClick={() => setView("cards")} className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-[11px] font-medium transition-colors ${view === "cards" ? "bg-blue-600 text-white" : "text-gray-400"}`}>
+          <div className="ml-auto flex h-10 items-center gap-0.5 rounded-lg bg-[#0d1a2d] p-0.5">
+            <button onClick={() => setView("cards")} className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-[11px] font-medium transition-colors ${view === "cards" ? "bg-blue-600 text-white shadow-[0_0_14px_rgba(37,99,235,0.45)]" : "text-gray-400"}`}>
               <LayoutGrid className="h-3.5 w-3.5" /> Cards View
             </button>
-            <button onClick={() => setView("schedule")} className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-[11px] font-medium transition-colors ${view === "schedule" ? "bg-blue-600 text-white" : "text-gray-400"}`}>
+            <button onClick={() => setView("schedule")} className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-[11px] font-medium transition-colors ${view === "schedule" ? "bg-blue-600 text-white shadow-[0_0_14px_rgba(37,99,235,0.45)]" : "text-gray-400"}`}>
               <CalendarClock className="h-3.5 w-3.5" /> Schedule View
             </button>
           </div>
         </div>
 
         {/* ── Main grid ── */}
-        <div className={`grid grid-cols-1 gap-5 ${selected ? "xl:grid-cols-3" : ""}`}>
+        <div className={`grid grid-cols-1 gap-5 ${selected ? "2xl:grid-cols-[minmax(0,1fr)_430px]" : ""}`}>
           {/* Directory */}
-          <div className={selected ? "xl:col-span-2" : ""}>
+          <div className="min-w-0">
             {isLoading ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-44 w-full" />)}
@@ -460,12 +476,17 @@ export default function EmployeesPage() {
                   const count = todayCountByUser[String(e.userId?._id)] || 0;
                   const att = attendanceByUser[String(e.userId?._id)];
                   const am = attendanceMeta(att);
+                  const active = selected?._id === e._id;
                   return (
-                    <Card key={e._id} className={`transition-colors ${selectedId === e._id ? "border-blue-600" : "hover:border-[#2a3b54]"}`}>
-                      <CardContent className="p-4">
+                    <Card
+                      key={e._id}
+                      onClick={() => { setSelectedId(e._id); setTab("overview"); }}
+                      className={`cursor-pointer overflow-hidden border-[#173050] bg-[#0b1728] transition-colors hover:border-blue-500/50 ${active ? "border-blue-500 shadow-[0_0_22px_rgba(37,99,235,0.25)]" : ""}`}
+                    >
+                      <CardContent className="p-3.5">
                         <div className="flex items-start gap-3">
                           <div className="relative shrink-0">
-                            <Avatar className="h-11 w-11">
+                            <Avatar className="h-12 w-12 ring-1 ring-white/10">
                               {e.userId?.profileImage?.url ? <AvatarImage src={e.userId.profileImage.url} alt={empName(e)} /> : null}
                               <AvatarFallback>{getInitials(empName(e))}</AvatarFallback>
                             </Avatar>
@@ -476,7 +497,7 @@ export default function EmployeesPage() {
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-gray-100">{empName(e)}</p>
+                            <p className="truncate text-[15px] font-semibold text-gray-100">{empName(e)}</p>
                             <p className="truncate text-[11px] text-gray-500">{e.position}</p>
                             <p className={`mt-0.5 flex items-center gap-1.5 text-[11px] ${sm.text}`}><span className={`h-2 w-2 rounded-full ${sm.dot}`} />{sm.label}</p>
                           </div>
@@ -491,28 +512,28 @@ export default function EmployeesPage() {
                           </div>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                          <div>
-                            <p className="text-[9px] uppercase tracking-wide text-gray-500">Today&apos;s Appts</p>
-                            <p className="mt-0.5 text-sm font-bold text-white">{count}</p>
+                        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[#173050] pt-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-[10px] text-gray-500">Today&apos;s Appts</p>
+                            <p className="mt-1 text-lg font-semibold leading-none text-white">{count}</p>
                           </div>
-                          <div>
-                            <p className="text-[9px] uppercase tracking-wide text-gray-500">Utilization</p>
-                            <p className={`mt-0.5 text-sm font-bold ${utilColor(util)}`}>{util}%</p>
+                          <div className="min-w-0">
+                            <p className="truncate text-[10px] text-gray-500">Utilization</p>
+                            <p className={`mt-1 text-lg font-semibold leading-none ${utilColor(util)}`}>{util}%</p>
                           </div>
-                          <div>
-                            <p className="text-[9px] uppercase tracking-wide text-gray-500">Rating</p>
-                            <p className="mt-0.5 flex items-center justify-center gap-0.5 text-sm font-bold text-white">
+                          <div className="min-w-0">
+                            <p className="truncate text-[10px] text-gray-500">Rating</p>
+                            <p className="mt-1 flex items-center gap-0.5 text-lg font-semibold leading-none text-white">
                               <Star className="h-3 w-3 fill-amber-400 text-amber-400" />{(e.avgRating || 0).toFixed(1)}
                             </p>
                           </div>
                         </div>
 
-                        <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#1e2d40]">
+                        <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#14243a]">
                           <div className={`h-full rounded-full ${utilBar(util)}`} style={{ width: `${Math.min(100, util)}%` }} />
                         </div>
 
-                        <button onClick={() => { setSelectedId(e._id); setTab("overview"); }} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#1e2d40] py-2 text-xs text-blue-400 transition-colors hover:bg-[#1e2d40]">
+                        <button onClick={(event) => { event.stopPropagation(); setSelectedId(e._id); setTab("overview"); }} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#173050] bg-[#0a1525] py-2 text-xs text-gray-300 transition-colors hover:border-blue-500/50 hover:text-blue-300">
                           View Profile <ArrowRight className="h-3.5 w-3.5" />
                         </button>
                       </CardContent>
@@ -598,41 +619,41 @@ function ProfilePanel({
   ];
 
   return (
-    <Card className="self-start">
-      <CardContent className="p-5">
+    <Card className="self-start overflow-hidden border-[#173050] bg-gradient-to-br from-[#071321] to-[#0b1a2f] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <CardContent className="p-4">
         {/* Header */}
         <div className="flex items-start gap-3">
-          <Avatar className="h-14 w-14">
+          <Avatar className="h-20 w-20 ring-1 ring-white/10">
             {employee.userId?.profileImage?.url ? <AvatarImage src={employee.userId.profileImage.url} alt={empName(employee)} /> : null}
-            <AvatarFallback>{getInitials(empName(employee))}</AvatarFallback>
+            <AvatarFallback className="text-lg">{getInitials(empName(employee))}</AvatarFallback>
           </Avatar>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 pt-2">
             <div className="flex items-center gap-2">
-              <p className="truncate text-base font-semibold text-white">{empName(employee)}</p>
+              <p className="truncate text-xl font-semibold text-white">{empName(employee)}</p>
               <span className={`rounded-md border px-2 py-0.5 text-[10px] font-medium ${sm.chip}`}>{sm.label}</span>
             </div>
             <p className="text-xs text-gray-500">{employee.position}</p>
-            <div className="mt-1 space-y-0.5">
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
               {employee.userId?.email ? <p className="flex items-center gap-1 text-[11px] text-blue-400"><Mail className="h-3 w-3" />{employee.userId.email}</p> : null}
               {employee.userId?.phoneNumber ? <p className="flex items-center gap-1 text-[11px] text-gray-400"><Phone className="h-3 w-3" />{employee.userId.phoneNumber}</p> : null}
             </div>
           </div>
-          <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:bg-[#1e2d40]"><UserX className="h-4 w-4" /></button>
+          <button onClick={onClose} className="rounded-full bg-[#102036] p-2 text-gray-500 hover:bg-[#1e2d40] hover:text-gray-200"><UserX className="h-4 w-4" /></button>
         </div>
 
         {/* Tabs */}
-        <div className="mt-4 flex gap-1 rounded-lg bg-[#0d1a2d] p-0.5">
+        <div className="mt-5 flex gap-0 rounded-lg border border-[#173050] bg-[#071321] p-0.5">
           {tabs.map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-medium capitalize transition-colors ${tab === t ? "bg-blue-600 text-white" : "text-gray-400 hover:text-gray-200"}`}>{t}</button>
+            <button key={t} onClick={() => setTab(t)} className={`flex-1 rounded-md px-2 py-2 text-[11px] font-medium capitalize transition-colors ${tab === t ? "bg-blue-600 text-white shadow-[0_0_14px_rgba(37,99,235,0.38)]" : "text-gray-400 hover:text-gray-200"}`}>{t}</button>
           ))}
         </div>
 
         {/* Overview */}
         {tab === "overview" && (
-          <div className="mt-4 space-y-5">
-            <div>
+          <div className="mt-4 space-y-4">
+            <div className="rounded-xl border border-[#173050] bg-[#0b1728] p-4">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-semibold text-gray-300">About</p>
+                <p className="text-sm font-semibold text-gray-200">About</p>
                 <button onClick={onEdit} className="text-[11px] text-blue-400 hover:text-blue-300">Edit</button>
               </div>
               <div className="space-y-2 text-xs">
@@ -649,21 +670,52 @@ function ProfilePanel({
               </div>
             </div>
 
-            <div>
-              <p className="mb-2 text-xs font-semibold text-gray-300">Performance <span className="font-normal text-gray-500">(This Month)</span></p>
+            <div className="rounded-xl border border-[#173050] bg-[#0b1728] p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-200">Performance <span className="font-normal text-gray-500">(This Month)</span></p>
+                <button className="rounded-md border border-[#173050] px-2 py-1 text-[10px] text-gray-400">This Week</button>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 {perfStats.map((s) => (
-                  <div key={s.label} className="rounded-lg border border-[#1e2d40] bg-[#0d1a2d] p-2.5">
+                  <div key={s.label} className="rounded-lg border border-[#173050] bg-[#0d1a2d] p-3">
                     <p className="text-[10px] text-gray-500">{s.label}</p>
-                    <p className={`text-sm font-bold ${s.cls}`}>{s.value}</p>
+                    <p className={`mt-1 text-xl font-semibold leading-none ${s.cls}`}>{s.value}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div>
-              <p className="mb-2 text-xs font-semibold text-gray-300">Today&apos;s Schedule</p>
+            <div className="rounded-xl border border-[#173050] bg-[#0b1728] p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-200">Today&apos;s Schedule</p>
+                <button onClick={() => setTab("schedule")} className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300">
+                  View full day <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
               <ScheduleList schedule={schedule} todayOnly />
+            </div>
+
+            <div className="rounded-xl border border-[#173050] bg-[#0b1728] p-4">
+              <p className="mb-3 text-sm font-semibold text-gray-200">Quick Actions</p>
+              <div className="grid grid-cols-5 gap-2">
+                {[
+                  { label: "Edit Profile", icon: Users, onClick: onEdit },
+                  { label: "Set Schedule", icon: CalendarCheck, onClick: () => setTab("settings") },
+                  { label: "Add Time Off", icon: Bell, onClick: () => onStatus("on_leave") },
+                  { label: "View Calendar", icon: CalendarDays, onClick: () => setTab("schedule") },
+                  { label: "Send Message", icon: Mail, onClick: undefined },
+                ].map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    onClick={action.onClick}
+                    className="flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-lg border border-[#173050] bg-[#0d1a2d] px-1.5 text-center text-[10px] text-gray-300 hover:border-blue-500/50 hover:text-blue-300"
+                  >
+                    <action.icon className="h-4 w-4 text-blue-400" />
+                    <span className="leading-tight">{action.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}

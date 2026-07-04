@@ -50,7 +50,7 @@ export function Header({ title, subtitle, action }: HeaderProps) {
         : String(displayRole).replace(/_/g, " ");
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-[#1e2d40] bg-[#070f1c] px-3 sm:gap-4 sm:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-2 bg-[#070f1c] px-3 sm:gap-4 sm:px-6">
       <button
         type="button"
         onClick={() => setIsOpen(true)}
@@ -111,7 +111,7 @@ export function Header({ title, subtitle, action }: HeaderProps) {
             <Link href="/settings">Profile</Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/settings">Subscription</Link>
+            <Link href="/subscription">Subscription</Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href="/settings">Billing</Link>

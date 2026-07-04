@@ -2,6 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   appointmentsApi,
@@ -13,7 +14,6 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { KoraOrb } from "@/components/kora-orb";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -886,7 +886,14 @@ export default function TasksPage() {
           <CardContent className="p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
               <div className="flex shrink-0 items-center gap-3">
-                <KoraOrb size={162} />
+                <Image
+                  src="/kora.png"
+                  alt="Kora"
+                  width={162}
+                  height={162}
+                  unoptimized
+                  className="kora-image h-[162px] w-[162px] object-contain"
+                />
                 <div>
                   <p className="text-sm font-semibold text-white">Kora Insights</p>
                   <p className="text-[11px] text-gray-500">AI-powered scheduling tips</p>

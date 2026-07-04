@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import Link from "next/link";
 
 const loginErrorMessages: Record<string, string> = {
   credentials: "Invalid email or password.",
+  CredentialsSignin: "Invalid email or password.",
   user_not_found: "No account found for this email.",
   wrong_password: "Incorrect password.",
   email_not_verified: "Email not verified. Please verify your email first.",
@@ -19,6 +20,22 @@ const loginErrorMessages: Record<string, string> = {
   auth_service_unavailable: "Login service is unavailable. Please try again.",
 };
 
+function getLoginErrorMessage(result?: {
+  code?: string | null;
+  error?: string | null;
+  url?: string | null;
+}) {
+  const url = result?.url ? new URL(result.url, window.location.origin) : null;
+  const code =
+    result?.code ||
+    url?.searchParams.get("code") ||
+    url?.searchParams.get("error") ||
+    result?.error ||
+    "credentials";
+
+  return loginErrorMessages[code] || "Invalid email or password.";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("businessowner@gmail.com");
@@ -26,6 +43,16 @@ export default function LoginPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const code = searchParams.get("code") || searchParams.get("error");
+    if (!code) return;
+
+    const message = loginErrorMessages[code] || "Invalid email or password.";
+    setFormError(message);
+    toast.error(message);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,9 +70,7 @@ export default function LoginPage() {
         router.refresh();
         router.replace("/dashboard");
       } else {
-        const message =
-          loginErrorMessages[result?.code ?? "credentials"] ||
-          "Invalid email or password.";
+        const message = getLoginErrorMessage(result);
         setFormError(message);
         toast.error(message);
       }

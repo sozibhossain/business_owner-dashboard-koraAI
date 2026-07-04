@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,6 @@ import {
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { aiDataApi } from "@/lib/api";
-import { KoraOrb } from "@/components/kora-orb";
 
 interface Message { id: string; role: "user" | "assistant"; content: string; time: string; }
 interface Conversation {
@@ -72,9 +72,6 @@ const fallbackConversations: Conversation[] = [
   },
 ];
 
-
-
-export { KoraOrb };
 export default function AssistantPage() {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -132,7 +129,15 @@ export default function AssistantPage() {
               <CardContent className="p-0">
                 <div className="flex min-h-[224px] flex-col gap-5 p-5 sm:flex-row sm:items-center">
                   <div className="flex justify-center sm:w-[180px]">
-                    <KoraOrb size={162} />
+                    <Image
+                      src="/kora.png"
+                      alt="Kora"
+                      width={162}
+                      height={162}
+                      unoptimized
+                      priority
+                      className="kora-image h-[162px] w-[162px] object-contain"
+                    />
                   </div>
                   <div className="min-w-0 flex-1">
                     <h2 className="text-2xl font-semibold text-white">Hi Sarah!</h2>
@@ -241,7 +246,14 @@ export default function AssistantPage() {
                   Kora is active
                 </div>
                 <div className="flex justify-center py-1">
-                  <KoraOrb size={162} />
+                  <Image
+                    src="/kora.png"
+                    alt="Kora"
+                    width={162}
+                    height={162}
+                    unoptimized
+                    className="kora-image h-[162px] w-[162px] object-contain"
+                  />
                 </div>
                 <p className="mt-4 text-center text-sm text-gray-400">
                   Always here to help you

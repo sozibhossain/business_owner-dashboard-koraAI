@@ -272,7 +272,11 @@ export default function CalendarPage() {
       toast.error(error?.response?.data?.message || "Failed to remove"),
   });
 
-  const appointments: any[] = asArray(appointmentsResponse?.data);
+  const appointments: any[] = asArray(
+    appointmentsResponse?.data?.appointments ||
+      appointmentsResponse?.data?.data?.appointments ||
+      appointmentsResponse?.data,
+  );
   const insights: any[] = asArray(insightsResponse?.data);
   const employees: any[] = asArray(employeesResponse?.data);
   const blocks: any[] = useMemo(
