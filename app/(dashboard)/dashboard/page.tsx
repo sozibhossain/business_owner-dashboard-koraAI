@@ -153,12 +153,12 @@ export default function BusinessOwnerDashboard() {
     {
       label: "New\nAppointment",
       icon: CalendarDays,
-      onClick: () => router.push("/calendar"),
+      onClick: () => router.push("/calendar?create=appointment"),
     },
     {
       label: "Create\nInvoice",
       icon: Receipt,
-      onClick: () => router.push("/accounting"),
+      onClick: () => router.push("/accounting?create=invoice"),
     },
     {
       label: "Send\nMessage",

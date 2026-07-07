@@ -138,28 +138,32 @@ const CAPACITY: Record<
   free: {
     label: "Free Slots",
     dot: "bg-emerald-400",
-    cell: "border-emerald-500/30 bg-emerald-500/[0.08] hover:bg-emerald-500/[0.14]",
+    cell:
+      "border-emerald-500/25 bg-[radial-gradient(circle_at_85%_18%,rgba(16,185,129,0.24),transparent_26%),linear-gradient(135deg,rgba(5,150,105,0.32),rgba(6,78,59,0.28))] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_20px_rgba(16,185,129,0.07)] hover:border-emerald-400/50",
     label_text: "text-emerald-400",
-    num: "text-emerald-300",
+    num: "text-emerald-100",
   },
   busy: {
     label: "Busy",
     dot: "bg-blue-400",
-    cell: "border-blue-500/30 bg-blue-500/[0.08] hover:bg-blue-500/[0.14]",
+    cell:
+      "border-blue-500/25 bg-[radial-gradient(circle_at_85%_18%,rgba(59,130,246,0.25),transparent_26%),linear-gradient(135deg,rgba(29,78,216,0.32),rgba(14,42,91,0.32))] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_20px_rgba(59,130,246,0.08)] hover:border-blue-400/50",
     label_text: "text-blue-400",
-    num: "text-blue-200",
+    num: "text-blue-100",
   },
   overbooked: {
     label: "Overbooked",
     dot: "bg-red-400",
-    cell: "border-red-500/40 bg-red-500/[0.10] hover:bg-red-500/[0.16]",
+    cell:
+      "border-red-500/45 bg-[radial-gradient(circle_at_85%_18%,rgba(248,113,113,0.25),transparent_26%),linear-gradient(135deg,rgba(185,28,28,0.38),rgba(69,10,10,0.35))] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_20px_rgba(239,68,68,0.10)] hover:border-red-400/70",
     label_text: "text-red-400",
-    num: "text-red-300",
+    num: "text-red-100",
   },
   off: {
     label: "Off",
     dot: "bg-gray-500",
-    cell: "border-[#1b2940] bg-[#0a1322] hover:bg-[#0e1a2d]",
+    cell:
+      "border-[#1c2b40] bg-[linear-gradient(135deg,rgba(15,23,42,0.82),rgba(8,15,27,0.88))] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] hover:border-[#2b3c55]",
     label_text: "text-gray-500",
     num: "text-gray-500",
   },
@@ -816,7 +820,7 @@ export default function TasksPage() {
         subtitle="Weekly overview of all appointments and tasks. Plan smarter, stay ahead."
       />
 
-      <div className="space-y-5 p-3 sm:p-4 lg:p-6">
+      <div className="space-y-4 bg-[radial-gradient(circle_at_47%_0%,rgba(37,99,235,0.18),transparent_28%),linear-gradient(180deg,#050d1a_0%,#06101e_42%,#050b16_100%)] p-3 sm:p-4 lg:p-6">
         {/* ── Page heading ── */}
         <div>
           <div className="flex items-center gap-2">
@@ -832,7 +836,7 @@ export default function TasksPage() {
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
           {isLoading
             ? Array.from({ length: 5 }).map((_, i) => (
-                <Card key={i}>
+                <Card key={i} className="overflow-hidden border-[#173050] bg-gradient-to-br from-[#0c1c31] to-[#071321]">
                   <CardContent className="px-4 pb-3 pt-4">
                     <Skeleton className="h-14 w-full" />
                   </CardContent>
@@ -841,29 +845,32 @@ export default function TasksPage() {
             : metricCards.map((item) => {
                 const up = (item.delta ?? 0) >= 0;
                 return (
-                  <Card key={item.label}>
-                    <CardContent className="px-4 pb-3 pt-4">
+                  <Card
+                    key={item.label}
+                    className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_100%_0%,rgba(37,99,235,0.16),transparent_35%),linear-gradient(135deg,#0b1a2d,#071321)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_16px_40px_rgba(0,0,0,0.18)]"
+                  >
+                    <CardContent className="min-h-[118px] px-4 pb-3 pt-4">
                       <div className="flex items-start justify-between gap-1">
                         <div className="flex min-w-0 items-start gap-2.5">
                           <div
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${item.color}`}
+                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${item.color} shadow-[0_0_22px_rgba(59,130,246,0.22)]`}
                           >
-                            <item.icon className="h-4 w-4 text-white" />
+                            <item.icon className="h-5 w-5 text-white" />
                           </div>
                           <div className="min-w-0">
-                            <p className="mb-0.5 truncate text-[10px] leading-tight text-gray-400">
+                            <p className="mb-1 truncate text-[11px] leading-tight text-gray-300">
                               {item.label}
                             </p>
-                            <p className="text-2xl font-extrabold leading-none text-white">
+                            <p className="text-3xl font-semibold leading-none text-white">
                               {item.value}
                             </p>
                             {"subtext" in item && item.subtext ? (
-                              <p className="mt-1 truncate text-[10px] leading-tight text-gray-400">
+                              <p className="mt-2 truncate text-[11px] leading-tight text-gray-400">
                                 {item.subtext}
                               </p>
                             ) : (
                               <p
-                                className={`mt-1 flex items-center gap-0.5 text-[10px] leading-tight ${
+                                className={`mt-2 flex items-center gap-1 text-[11px] leading-tight ${
                                   up ? "text-emerald-400" : "text-red-400"
                                 }`}
                               >
@@ -882,67 +889,65 @@ export default function TasksPage() {
         </div>
 
         {/* ── Kora Insights ── */}
-        <Card className="bg-[#070f1c]">
+        <Card className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_4%_50%,rgba(37,99,235,0.24),transparent_13%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <CardContent className="p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-              <div className="flex shrink-0 items-center gap-3">
+              <div className="flex h-[104px] w-[104px] shrink-0 items-center justify-center">
                 <Image
                   src="/kora.png"
                   alt="Kora"
-                  width={162}
-                  height={162}
+                  width={104}
+                  height={104}
                   unoptimized
-                  className="kora-image h-[162px] w-[162px] object-contain"
+                  className="kora-image h-[104px] w-[104px] object-contain drop-shadow-[0_0_24px_rgba(59,130,246,0.45)]"
                 />
-                <div>
-                  <p className="text-sm font-semibold text-white">Kora Insights</p>
-                  <p className="text-[11px] text-gray-500">AI-powered scheduling tips</p>
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="mb-3 text-lg font-semibold leading-none text-white">Kora Insights</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {(insights.length ? insights : []).map((insight, i) => (
+                    <div
+                      key={i}
+                      className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                    >
+                      <div
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${insight.iconBg}`}
+                      >
+                        <insight.icon className={`h-4 w-4 ${insight.iconColor}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium leading-tight text-gray-200">
+                          {insight.title}
+                        </p>
+                        <p className="mt-1 truncate text-[11px] text-gray-500">{insight.sub}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {!insights.length && (
+                    <div className="col-span-full py-4 text-center text-xs text-gray-500">
+                      Insights will appear once you have schedule data.
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                {(insights.length ? insights : []).map((insight, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-2.5 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] px-3 py-2.5"
-                  >
-                    <div
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${insight.iconBg}`}
-                    >
-                      <insight.icon className={`h-3.5 w-3.5 ${insight.iconColor}`} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-medium leading-tight text-gray-200">
-                        {insight.title}
-                      </p>
-                      <p className="truncate text-[10px] text-gray-500">{insight.sub}</p>
-                    </div>
-                  </div>
-                ))}
-                {!insights.length && (
-                  <div className="col-span-full py-4 text-center text-xs text-gray-500">
-                    Insights will appear once you have schedule data.
-                  </div>
-                )}
-              </div>
-
-              <button className="flex shrink-0 items-center gap-1.5 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] px-3 py-2 text-xs text-blue-400 transition-colors hover:bg-[#1e2d40] lg:self-center">
+              <button className="flex shrink-0 items-center gap-2 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/70 px-4 py-2.5 text-sm text-gray-200 transition-colors hover:bg-[#1e2d40] lg:self-end">
                 View all insights <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
           </CardContent>
         </Card>
-
         {/* ── Main grid ── */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           {/* Left: toolbar + capacity planner */}
           <div className="space-y-5 lg:col-span-2">
-            <Card>
+            <Card className="overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               {/* Toolbar */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1e2d40] p-4">
                 <div className="flex items-center gap-2">
                   <CalendarDays className="h-4 w-4 text-blue-400" />
-                  <span className="text-sm font-semibold text-white">
+                  <span className="text-lg font-semibold text-white">
                     {formatWeekRange(weekDays)}
                   </span>
                   <div className="ml-1 flex items-center gap-1">
@@ -1031,13 +1036,13 @@ export default function TasksPage() {
                 ) : (
                   /* ── Week capacity grid ── */
                   <div className="overflow-x-auto">
-                    <div className="min-w-180">
+                    <div className="min-w-[930px]">
                       {/* Header row */}
                       <div
-                        className="grid border-b border-[#1e2d40] pb-2"
+                        className="grid border-b border-[#1e2d40] pb-3"
                         style={{ gridTemplateColumns: "170px repeat(7, 1fr)" }}
                       >
-                        <div className="px-1 text-[11px] font-medium text-gray-500">
+                        <div className="px-1 text-base font-semibold text-gray-200">
                           Employees
                         </div>
                         {weekDays.map((day) => {
@@ -1047,12 +1052,12 @@ export default function TasksPage() {
                             <button
                               key={key}
                               onClick={() => setSelectedKey(key)}
-                              className={`px-1 text-center text-[11px] font-medium transition-colors ${
+                              className={`px-1 text-center text-sm font-medium transition-colors ${
                                 isSelected ? "text-blue-400" : "text-gray-500 hover:text-gray-300"
                               }`}
                             >
                               <div>{day.toLocaleDateString("en-US", { weekday: "short" })}</div>
-                              <div className="text-gray-600">
+                              <div className="text-xs text-gray-600">
                                 {day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                               </div>
                             </button>
@@ -1065,11 +1070,11 @@ export default function TasksPage() {
                         {employeeSchedule.map(({ employee, cells }) => (
                           <div
                             key={employee._id}
-                            className="grid items-center py-2.5"
+                            className="grid items-center py-2"
                             style={{ gridTemplateColumns: "170px repeat(7, 1fr)" }}
                           >
                             <div className="flex items-center gap-2.5 px-1 pr-2">
-                              <Avatar className="h-8 w-8">
+                              <Avatar className="h-10 w-10">
                                 {employee?.userId?.profileImage?.url ? (
                                   <AvatarImage
                                     src={employee.userId.profileImage.url}
@@ -1104,7 +1109,7 @@ export default function TasksPage() {
                                       if (e.key === "Enter")
                                         setDayDetail({ employee, dateKey: cell.date });
                                     }}
-                                    className={`group relative cursor-pointer rounded-lg border p-2 transition-colors ${cfg.cell}`}
+                                    className={`group relative min-h-[64px] cursor-pointer rounded-lg border p-2.5 transition-colors ${cfg.cell}`}
                                   >
                                     <button
                                       onClick={(e) => {
@@ -1114,15 +1119,15 @@ export default function TasksPage() {
                                           cell.date
                                         );
                                       }}
-                                      className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded text-gray-500 opacity-0 transition-opacity hover:text-blue-400 group-hover:opacity-100"
+                                      className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-gray-300 transition-colors hover:bg-white/15 hover:text-white"
                                       aria-label="Add appointment"
                                     >
                                       <Plus className="h-3.5 w-3.5" />
                                     </button>
-                                    <p className={`text-base font-bold leading-none ${cfg.num}`}>
-                                      {cell.info.status === "off" ? "—" : cell.info.display}
+                                    <p className={`text-2xl font-semibold leading-none ${cfg.num}`}>
+                                      {cell.info.status === "off" ? "0" : cell.info.display}
                                     </p>
-                                    <p className={`mt-1 text-[10px] leading-tight ${cfg.label_text}`}>
+                                    <p className={`mt-1 text-xs leading-tight ${cfg.label_text}`}>
                                       {cfg.label}
                                     </p>
                                   </div>
@@ -1162,10 +1167,10 @@ export default function TasksPage() {
           {/* Right: daily schedule + quick actions */}
           <div className="space-y-5">
             {/* Daily Schedule Overview */}
-            <Card>
+            <Card className="overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-white">
+                  <p className="text-lg font-semibold text-white">
                     {selectedDate.toLocaleDateString("en-US", {
                       weekday: "long",
                       month: "long",
@@ -1196,7 +1201,7 @@ export default function TasksPage() {
                     {Math.round(selectedSummary.ratio * 100)}% of capacity
                   </p>
                 </div>
-                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[#1e2d40]">
+                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#1e2d40]">
                   <div
                     className={`h-full rounded-full ${
                       selectedSummary.ratio > 1
@@ -1221,7 +1226,7 @@ export default function TasksPage() {
                       return (
                         <div
                           key={appt._id}
-                          className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-[#0d1a2d]"
+                          className="flex items-center gap-3 rounded-lg bg-[#0d1a2d]/35 px-2 py-2 transition-colors hover:bg-[#0d1a2d]"
                         >
                           <span className="w-12 shrink-0 text-[11px] text-gray-500">
                             {appt.startTime}
@@ -1266,7 +1271,7 @@ export default function TasksPage() {
             </Card>
 
             {/* Quick Actions */}
-            {/* <Card>
+            <Card className="overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               <CardContent className="p-4">
                 <p className="mb-3 text-sm font-semibold text-white">Quick Actions</p>
                 <div className="grid grid-cols-4 gap-2">
@@ -1274,12 +1279,12 @@ export default function TasksPage() {
                     <button
                       key={action.label}
                       onClick={action.onClick}
-                      className="flex flex-col items-center gap-2 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] px-1 py-3 transition-colors hover:bg-[#1e2d40]"
+                      className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-1 py-3 text-center transition-colors hover:border-blue-500/35 hover:bg-[#122238]"
                     >
                       <div
-                        className={`flex h-9 w-9 items-center justify-center rounded-xl border ${action.color}`}
+                        className={`flex h-10 w-10 items-center justify-center rounded-lg border ${action.color}`}
                       >
-                        <action.icon className="h-4 w-4" />
+                        <action.icon className="h-5 w-5" />
                       </div>
                       <span className="whitespace-pre-line text-center text-[10px] leading-tight text-gray-400">
                         {action.label}
@@ -1288,7 +1293,7 @@ export default function TasksPage() {
                   ))}
                 </div>
               </CardContent>
-            </Card> */}
+            </Card>
           </div>
         </div>
       </div>

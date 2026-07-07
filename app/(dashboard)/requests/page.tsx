@@ -226,8 +226,11 @@ export default function RequestsPage() {
   }, [requests, tab]);
 
   const selected = useMemo(
-    () => requests.find((r) => r._id === selectedId) || null,
-    [requests, selectedId]
+    () =>
+      selectedId === "__closed"
+        ? null
+        : requests.find((r) => r._id === selectedId) || visible[0] || null,
+    [requests, selectedId, visible]
   );
 
   const loading = isLoading || leavesLoading;
@@ -302,23 +305,15 @@ export default function RequestsPage() {
     <div>
       <Header title="Requests" subtitle="Review and manage all employee requests in one place." />
 
-      <div className="space-y-5 p-3 sm:p-4 lg:p-6">
+      <div className="space-y-4 p-3 sm:p-4 lg:p-6">
         {/* ── Heading ── */}
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-[22px] font-bold text-white">Requests</h2>
-            <CalendarPlus className="h-5 w-5 text-blue-400" />
-          </div>
-          <p className="mt-0.5 text-sm text-gray-400">
-            Review and manage all employee requests in one place.
-          </p>
-        </div>
-
         {/* ── Metric cards ── */}
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 space-y-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {loading
             ? Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i}>
+                <Card key={i} className="overflow-hidden border-[#173050] bg-gradient-to-br from-[#0c1c31] to-[#071321]">
                   <CardContent className="p-4">
                     <Skeleton className="h-14 w-full" />
                   </CardContent>
@@ -329,22 +324,22 @@ export default function RequestsPage() {
                 return (
                   <Card
                     key={m.label}
-                    className={m.onClick ? "cursor-pointer transition-colors hover:border-[#2a3b54]" : ""}
+                    className={`overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_100%_0%,rgba(37,99,235,0.16),transparent_35%),linear-gradient(135deg,#0b1a2d,#071321)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${m.onClick ? "cursor-pointer transition-colors hover:border-blue-500/40" : ""}`}
                   >
-                    <CardContent className="p-4" onClick={m.onClick}>
+                    <CardContent className="min-h-[112px] p-4" onClick={m.onClick}>
                       <div className="flex items-start gap-3">
-                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${m.tint}`}>
+                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-[0_0_22px_rgba(59,130,246,0.22)] ${m.tint}`}>
                           <m.icon className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-2xl font-extrabold leading-none text-white">{m.value}</p>
-                          <p className="mt-1 text-[11px] text-gray-400">{m.label}</p>
+                          <p className="text-3xl font-semibold leading-none text-white">{m.value}</p>
+                          <p className="mt-1 text-sm text-gray-200">{m.label}</p>
                           {"delta" in m ? (
-                            <p className={`mt-0.5 text-[10px] ${up ? "text-emerald-400" : "text-red-400"}`}>
+                            <p className={`mt-2 text-[11px] ${up ? "text-emerald-400" : "text-red-400"}`}>
                               {up ? "↑" : "↓"} {Math.abs(m.delta ?? 0)}% {m.deltaLabel}
                             </p>
                           ) : (
-                            <p className="mt-0.5 flex items-center gap-1 text-[10px] text-gray-500">
+                            <p className="mt-2 flex items-center gap-1 text-[11px] text-gray-400">
                               {m.sub} →
                             </p>
                           )}
@@ -357,7 +352,7 @@ export default function RequestsPage() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#173050] bg-[#071321] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
           <div className="flex flex-wrap items-center gap-2">
             {tabs.map((t) => (
               <button
@@ -365,8 +360,8 @@ export default function RequestsPage() {
                 onClick={() => setTab(t.key)}
                 className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                   tab === t.key
-                    ? "border-blue-600 bg-blue-600/15 text-blue-300"
-                    : "border-[#1e2d40] text-gray-400 hover:bg-[#1e2d40]"
+                    ? "border-blue-600 bg-blue-600/25 text-blue-200 shadow-[0_0_14px_rgba(37,99,235,0.28)]"
+                    : "border-[#1e2d40] bg-[#0d1a2d]/60 text-gray-400 hover:bg-[#1e2d40]"
                 }`}
               >
                 {t.label}
@@ -377,16 +372,15 @@ export default function RequestsPage() {
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 rounded-lg border border-[#1e2d40] px-3 py-1.5 text-xs text-gray-300 hover:bg-[#1e2d40]">
+            <button className="flex items-center gap-1.5 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#1e2d40]">
               <SlidersHorizontal className="h-3.5 w-3.5" /> Filters <ChevronDown className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
 
         {/* ── Main grid ── */}
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           {/* Request list */}
-          <div className="space-y-3 lg:col-span-2">
+          <div className="space-y-3">
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)
             ) : visible.length === 0 ? (
@@ -408,15 +402,15 @@ export default function RequestsPage() {
                       setSelectedId(req._id);
                       setNote("");
                     }}
-                    className={`cursor-pointer transition-colors ${
-                      selectedId === req._id ? "border-blue-600" : "hover:border-[#2a3b54]"
+                    className={`cursor-pointer overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors ${
+                      selected?._id === req._id ? "border-blue-600 shadow-[0_0_18px_rgba(37,99,235,0.18)]" : "hover:border-[#2a3b54]"
                     }`}
                   >
                     <CardContent className="p-4">
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+                      <div className="grid gap-4 xl:grid-cols-[190px_190px_minmax(0,1fr)_170px] xl:items-center">
                         {/* Employee */}
-                        <div className="flex min-w-45 items-center gap-3">
-                          <Avatar className="h-10 w-10">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-11 w-11">
                             {req.employees_id?.profileImage?.url ? (
                               <AvatarImage src={req.employees_id.profileImage.url} alt={empName(req)} />
                             ) : null}
@@ -425,12 +419,12 @@ export default function RequestsPage() {
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold text-gray-100">{empName(req)}</p>
                             <p className="truncate text-[11px] text-gray-500">{req.employees_id?.position || "Employee"}</p>
-                            <p className="mt-0.5 text-[10px] text-gray-600">Requested on {fmtDate(req.createdAt)}</p>
+                            <p className="mt-1 text-[10px] text-gray-600">Requested on {fmtDate(req.createdAt)}</p>
                           </div>
                         </div>
 
                         {/* Type + dates */}
-                        <div className="min-w-37.5 flex-1">
+                        <div className="min-w-0 border-[#173050] xl:border-l xl:pl-4">
                           <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium ${tm.cls}`}>
                             <tm.icon className="h-3.5 w-3.5" /> {tm.label}
                           </span>
@@ -446,7 +440,7 @@ export default function RequestsPage() {
                         </div>
 
                         {/* Reason */}
-                        <div className="min-w-35 flex-1">
+                        <div className="min-w-0 border-[#173050] xl:border-l xl:pl-4">
                           <p className="line-clamp-3 text-xs text-gray-400">{req.reason || "No reason provided."}</p>
                         </div>
 
@@ -506,9 +500,10 @@ export default function RequestsPage() {
               })
             )}
           </div>
+          </div>
 
           {/* Request details panel */}
-          <Card className="lg:sticky lg:top-20 lg:self-start">
+          <Card className="min-h-[calc(100vh-7.5rem)] overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] xl:sticky xl:top-20 xl:self-start">
             <CardContent className="p-5">
               {!selected ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -524,25 +519,25 @@ export default function RequestsPage() {
                   return (
                     <div>
                       <div className="mb-4 flex items-center justify-between">
-                        <p className="text-base font-semibold text-white">Request Details</p>
-                        <button onClick={() => setSelectedId(null)} className="rounded-md p-1 text-gray-400 hover:bg-[#1e2d40]">
+                        <p className="text-lg font-semibold text-white">Request Details</p>
+                        <button onClick={() => setSelectedId("__closed")} className="rounded-md p-1 text-gray-400 hover:bg-[#1e2d40]">
                           <X className="h-4 w-4" />
                         </button>
                       </div>
 
                       {/* Employee */}
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12">
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-16 w-16 ring-1 ring-white/10">
                           {selected.employees_id?.profileImage?.url ? (
                             <AvatarImage src={selected.employees_id.profileImage.url} alt={empName(selected)} />
                           ) : null}
                           <AvatarFallback>{getInitials(empName(selected))}</AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-gray-100">{empName(selected)}</p>
-                          <p className="truncate text-[11px] text-gray-500">{selected.employees_id?.position || "Employee"}</p>
+                          <p className="truncate text-lg font-semibold text-gray-100">{empName(selected)}</p>
+                          <p className="truncate text-sm text-gray-400">{selected.employees_id?.position || "Employee"}</p>
                           {selected.employees_id?.email ? (
-                            <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-blue-400">
+                            <p className="mt-2 flex items-center gap-1 truncate text-xs text-blue-400">
                               <Mail className="h-3 w-3" /> {selected.employees_id.email}
                             </p>
                           ) : null}
@@ -551,8 +546,8 @@ export default function RequestsPage() {
 
                       {/* Info */}
                       <div className="mt-5 border-t border-[#1e2d40] pt-4">
-                        <p className="mb-3 text-xs font-semibold text-gray-300">Request Information</p>
-                        <div className="space-y-2.5 text-xs">
+                        <p className="mb-4 text-sm font-semibold text-gray-200">Request Information</p>
+                        <div className="space-y-3 text-sm">
                           <Row label="Request Type">
                             <span className={`rounded-md border px-2 py-0.5 text-[10px] font-medium ${tm.cls}`}>{tm.label}</span>
                           </Row>
@@ -574,7 +569,7 @@ export default function RequestsPage() {
 
                       {/* History */}
                       <div className="mt-5 border-t border-[#1e2d40] pt-4">
-                        <p className="mb-3 text-xs font-semibold text-gray-300">History</p>
+                        <p className="mb-4 text-sm font-semibold text-gray-200">History</p>
                         <div className="space-y-3">
                           <div className="flex items-start gap-2.5">
                             <span className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full ${sm.cls}`}>
@@ -641,7 +636,7 @@ export default function RequestsPage() {
                             onChange={(e) => setNote(e.target.value)}
                             placeholder="Add a note for this request..."
                             rows={3}
-                            className="w-full resize-none rounded-lg border border-[#2a3547] bg-[#0d1526] px-3 py-2 text-xs text-gray-200 placeholder:text-gray-600 focus:border-blue-500 focus:outline-none"
+                            className="w-full resize-none rounded-lg border border-[#2a3547] bg-[#0d1526] px-3 py-2 text-sm text-gray-200 placeholder:text-gray-600 focus:border-blue-500 focus:outline-none"
                           />
                           <div className="mt-3 space-y-2">
                             <button

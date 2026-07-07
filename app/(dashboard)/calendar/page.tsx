@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { appointmentsApi, calendarApi, employeesApi } from "@/lib/api";
@@ -14,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { asArray, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
 import {
+  ArrowRight,
   CalendarDays,
   ChevronDown,
   ChevronLeft,
@@ -179,6 +181,19 @@ export default function CalendarPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
   const [blockDialogType, setBlockDialogType] = useState<"block" | "break" | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("create") !== "appointment") return;
+
+    const openTimer = window.setTimeout(() => {
+      setShowCreateDialog(true);
+      params.delete("create");
+      const query = params.toString();
+      router.replace(query ? `/calendar?${query}` : "/calendar", { scroll: false });
+    }, 0);
+    return () => window.clearTimeout(openTimer);
+  }, [router]);
 
   const { rangeStart, rangeEnd } = useMemo(() => {
     switch (view) {
@@ -1061,37 +1076,46 @@ export default function CalendarPage() {
 
             {/* Kora Insights */}
             {showInsights ? (
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#1e2d40] bg-[#0d1a2d] p-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600/15 text-2xl">
-                  <span className="relative inline-block">
-                    <span className="absolute inset-0 animate-pulse rounded-full bg-blue-400/30 blur-md" />
-                    <Sparkles className="relative h-5 w-5 text-blue-300" />
-                  </span>
+              <div className="flex flex-col gap-4 rounded-xl border border-[#173050] bg-[radial-gradient(circle_at_4%_50%,rgba(37,99,235,0.24),transparent_13%),linear-gradient(135deg,#071321,#0b1a2f)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] lg:flex-row lg:items-center">
+                <div className="flex h-[104px] w-[104px] shrink-0 items-center justify-center">
+                  <Image
+                    src="/kora.png"
+                    alt="Kora"
+                    width={104}
+                    height={104}
+                    unoptimized
+                    className="kora-image h-[104px] w-[104px] object-contain drop-shadow-[0_0_24px_rgba(59,130,246,0.45)]"
+                  />
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="hidden">
                   <Sparkles className="h-3 w-3 text-blue-400" />
-                  <span className="text-xs font-medium text-gray-300">Kora Insights</span>
+                  <span className="text-lg font-semibold text-white">Kora Insights</span>
                 </div>
-                <div className="flex flex-1 flex-wrap items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="mb-3 text-lg font-semibold leading-none text-white">Kora Insights</p>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   {(insights.length > 0 ? insights : FALLBACK_INSIGHTS)
                     .slice(0, 3)
                     .map((insight: any, index: number) => (
                       <div
                         key={`${insight.title}-${index}`}
-                        className="flex items-center gap-2 rounded-lg bg-[#1e2d40] px-3 py-1.5"
+                        className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
                       >
-                        <span className="text-base">{INSIGHT_ICONS[index % INSIGHT_ICONS.length]}</span>
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600/20 text-base">{INSIGHT_ICONS[index % INSIGHT_ICONS.length]}</span>
                         <div className="leading-tight">
-                          <p className="text-xs text-gray-200">{insight.title}</p>
-                          <p className="text-[10px] text-gray-500">{insight.message}</p>
+                          <p className="truncate text-xs font-medium text-gray-200">{insight.title}</p>
+                          <p className="mt-1 truncate text-[11px] text-gray-500">{insight.message}</p>
                         </div>
                       </div>
                     ))}
+                  </div>
                 </div>
                 <button
                   onClick={() => setShowInsightsDialog(true)}
-                  className="whitespace-nowrap text-xs text-blue-400 hover:text-blue-300"
+                  className="flex shrink-0 items-center gap-2 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/70 px-4 py-2.5 text-[0px] text-gray-200 transition-colors hover:bg-[#1e2d40] lg:self-end"
                 >
+                  <span className="text-sm">View all insights</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
                   View all insights →
                 </button>
               </div>

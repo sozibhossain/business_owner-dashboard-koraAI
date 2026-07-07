@@ -22,7 +22,6 @@ import { toast } from "sonner";
 import {
   AlertTriangle,
   ArrowRight,
-  Bell,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
@@ -331,6 +330,8 @@ export default function EmployeesPage() {
       <div className="space-y-5 p-3 sm:p-4 lg:p-6">
         {/* ── Heading + Add ── */}
         {/* ── Metric cards ── */}
+        <div className={`grid grid-cols-1 gap-5 ${selected ? "xl:grid-cols-[minmax(0,1fr)_430px]" : ""}`}>
+          <div className="min-w-0 space-y-5">
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (
@@ -358,39 +359,42 @@ export default function EmployeesPage() {
         </div>
 
         {/* ── Kora Insights ── */}
-        <Card className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_8%_50%,rgba(14,165,233,0.16),transparent_28%),linear-gradient(135deg,#071321,#0a182a)]">
+        <Card className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_4%_50%,rgba(37,99,235,0.24),transparent_13%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <CardContent className="p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-              <div className="flex min-w-56 shrink-0 items-center gap-4">
+              <div className="flex h-[104px] w-[104px] shrink-0 items-center justify-center">
                 <Image
                   src="/kora.png"
                   alt="Kora"
-                  width={92}
-                  height={92}
+                  width={104}
+                  height={104}
                   unoptimized
-                  className="kora-image h-[92px] w-[92px] object-contain"
+                  className="kora-image h-[104px] w-[104px] object-contain drop-shadow-[0_0_24px_rgba(59,130,246,0.45)]"
                 />
-                <p className="text-base font-semibold text-white">Kora Insights</p>
               </div>
-              <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
-                {insights.length ? (
-                  insights.map((ins, i) => (
-                    <button key={i} className="flex min-h-14 items-center gap-3 rounded-xl border border-[#173050] bg-[#0d1a2d]/90 px-3 py-2.5 text-left transition-colors hover:bg-[#122238]">
-                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${ins.tint}`}>
+
+              <div className="min-w-0 flex-1">
+                <p className="mb-3 text-lg font-semibold leading-none text-white">Kora Insights</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {insights.length ? (
+                    insights.map((ins, i) => (
+                      <button key={i} className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-3 py-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:bg-[#122238]">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${ins.tint}`}>
                         <ins.icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-[11px] font-medium text-gray-200">{ins.title}</p>
-                        <p className="truncate text-[10px] text-gray-500">{ins.sub}</p>
+                        <p className="truncate text-xs font-medium text-gray-200">{ins.title}</p>
+                        <p className="mt-1 truncate text-[11px] text-gray-500">{ins.sub}</p>
                       </div>
-                      <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0 text-gray-500" />
                     </button>
-                  ))
-                ) : (
-                  <p className="col-span-full py-3 text-center text-xs text-gray-500">No insights yet.</p>
-                )}
+                    ))
+                  ) : (
+                    <p className="col-span-full py-4 text-center text-xs text-gray-500">No insights yet.</p>
+                  )}
+                </div>
               </div>
-              <button className="flex shrink-0 items-center gap-1.5 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/80 px-4 py-2.5 text-xs text-gray-200 hover:bg-[#1e2d40] lg:self-center">
+
+              <button className="flex shrink-0 items-center gap-2 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/70 px-4 py-2.5 text-sm text-gray-200 transition-colors hover:bg-[#1e2d40] lg:self-end">
                 View all insights <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -428,7 +432,7 @@ export default function EmployeesPage() {
         </div>
 
         {/* ── Main grid ── */}
-        <div className={`grid grid-cols-1 gap-5 ${selected ? "2xl:grid-cols-[minmax(0,1fr)_430px]" : ""}`}>
+        <div>
           {/* Directory */}
           <div className="min-w-0">
             {isLoading ? (
@@ -469,7 +473,7 @@ export default function EmployeesPage() {
               </CardContent></Card>
             ) : (
               /* Cards view */
-              <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${selected ? "" : "xl:grid-cols-4"}`}>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {filtered.map((e) => {
                   const sm = statusMeta(e.status);
                   const util = e.utilizationRate || 0;
@@ -547,6 +551,8 @@ export default function EmployeesPage() {
               Showing {filtered.length} of {employees.length} employees
             </p>
           </div>
+          </div>
+          </div>
 
           {/* Profile panel */}
           {selected && (
@@ -619,7 +625,7 @@ function ProfilePanel({
   ];
 
   return (
-    <Card className="self-start overflow-hidden border-[#173050] bg-gradient-to-br from-[#071321] to-[#0b1a2f] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <Card className="min-h-[calc(100vh-7.5rem)] self-start overflow-hidden border-[#173050] bg-gradient-to-br from-[#071321] to-[#0b1a2f] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] xl:sticky xl:top-20">
       <CardContent className="p-4">
         {/* Header */}
         <div className="flex items-start gap-3">
@@ -695,28 +701,6 @@ function ProfilePanel({
               <ScheduleList schedule={schedule} todayOnly />
             </div>
 
-            <div className="rounded-xl border border-[#173050] bg-[#0b1728] p-4">
-              <p className="mb-3 text-sm font-semibold text-gray-200">Quick Actions</p>
-              <div className="grid grid-cols-5 gap-2">
-                {[
-                  { label: "Edit Profile", icon: Users, onClick: onEdit },
-                  { label: "Set Schedule", icon: CalendarCheck, onClick: () => setTab("settings") },
-                  { label: "Add Time Off", icon: Bell, onClick: () => onStatus("on_leave") },
-                  { label: "View Calendar", icon: CalendarDays, onClick: () => setTab("schedule") },
-                  { label: "Send Message", icon: Mail, onClick: undefined },
-                ].map((action) => (
-                  <button
-                    key={action.label}
-                    type="button"
-                    onClick={action.onClick}
-                    className="flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-lg border border-[#173050] bg-[#0d1a2d] px-1.5 text-center text-[10px] text-gray-300 hover:border-blue-500/50 hover:text-blue-300"
-                  >
-                    <action.icon className="h-4 w-4 text-blue-400" />
-                    <span className="leading-tight">{action.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 

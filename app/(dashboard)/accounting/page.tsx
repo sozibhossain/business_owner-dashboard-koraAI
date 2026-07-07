@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { accountingApi } from "@/lib/api";
 import { Header } from "@/components/layout/header";
@@ -119,6 +119,19 @@ export default function AccountingPage() {
     description: "",
     type: "invoice",
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("create") !== "invoice") return;
+
+    const openTimer = window.setTimeout(() => {
+      setCreateOpen(true);
+      params.delete("create");
+      const query = params.toString();
+      window.history.replaceState(null, "", query ? `/accounting?${query}` : "/accounting");
+    }, 0);
+    return () => window.clearTimeout(openTimer);
+  }, []);
 
   const { data: dashboardResponse, isLoading: dashboardLoading } = useQuery({
     queryKey: ["accounting-dashboard"],
@@ -337,7 +350,7 @@ export default function AccountingPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Invoice</DialogTitle>
-            <DialogDescription>Create a new invoice through /api/v1/accounting.</DialogDescription>
+            <DialogDescription>Create a new invoice through your accounting system.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -715,24 +728,24 @@ export default function AccountingPage() {
           {/* Right panel */}
           <div className="space-y-4">
             {/* Kora Insights */}
-            <Card>
+            <Card className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_8%_20%,rgba(37,99,235,0.18),transparent_26%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               <CardContent className="pt-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-full bg-blue-600/15 flex items-center justify-center">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600/20 shadow-[0_0_18px_rgba(59,130,246,0.28)]">
+                    <Sparkles className="h-4 w-4 text-blue-400" />
                   </div>
-                  <span className="text-xs font-medium text-gray-300">Kora Insights</span>
+                  <span className="text-lg font-semibold text-white">Kora Insights</span>
                 </div>
                 <div className="space-y-2">
                   {koraInsights.map((insight) => (
                     <div
                       key={insight.title}
-                      className={`flex items-start gap-2 rounded-lg px-3 py-2 ${insight.color}`}
+                      className={`flex min-h-[62px] items-start gap-3 rounded-lg border border-[#1e2d40] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] ${insight.color}`}
                     >
-                      <span className="text-sm mt-0.5">{insight.icon}</span>
-                      <div>
-                        <p className="text-xs text-gray-100">{insight.title}</p>
-                        <p className="text-[10px] opacity-75">{insight.sub}</p>
+                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0d1a2d]/70 text-sm">{insight.icon}</span>
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium text-gray-100">{insight.title}</p>
+                        <p className="mt-1 truncate text-[11px] opacity-75">{insight.sub}</p>
                       </div>
                     </div>
                   ))}
