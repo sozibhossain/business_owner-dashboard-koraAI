@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { asArray, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
+import { useViewportPageSize } from "@/hooks/use-viewport-page-size";
 import {
   CalendarDays,
   CalendarPlus,
@@ -122,7 +123,6 @@ const requestRange = (req: any) => {
 };
 
 const empName = (req: any) => req?.employees_id?.name || "Employee";
-
 /* ─────────────────────────  Page  ───────────────────────── */
 
 export default function RequestsPage() {
@@ -130,6 +130,13 @@ export default function RequestsPage() {
   const [tab, setTab] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [requestPage, setRequestPage] = useState(1);
+  const requestPageSize = useViewportPageSize({
+    rowHeight: 78,
+    reservedHeight: 470,
+    min: 3,
+    max: 7,
+  });
 
   const { data: resp, isLoading } = useQuery({
     queryKey: ["requests-all"],
@@ -225,6 +232,13 @@ export default function RequestsPage() {
     );
   }, [requests, tab]);
 
+  const requestPageCount = Math.max(1, Math.ceil(visible.length / requestPageSize));
+  const pagedRequests = useMemo(() => {
+    const safePage = Math.min(requestPage, requestPageCount);
+    const start = (safePage - 1) * requestPageSize;
+    return visible.slice(start, start + requestPageSize);
+  }, [requestPage, requestPageCount, requestPageSize, visible]);
+
   const selected = useMemo(
     () =>
       selectedId === "__closed"
@@ -258,6 +272,10 @@ export default function RequestsPage() {
   });
 
   const busy = decideMutation.isPending;
+  const selectTab = (nextTab: typeof tab) => {
+    setRequestPage(1);
+    setTab(nextTab);
+  };
 
   const metricCards = [
     {
@@ -266,7 +284,7 @@ export default function RequestsPage() {
       icon: CalendarPlus,
       tint: "bg-blue-600/15 text-blue-400",
       sub: "Requires your action",
-      onClick: () => setTab("pending"),
+      onClick: () => selectTab("pending"),
     },
     {
       label: "Approved Today",
@@ -290,7 +308,7 @@ export default function RequestsPage() {
       icon: XCircle,
       tint: "bg-red-600/15 text-red-400",
       sub: "This week",
-      onClick: () => setTab("rejected"),
+      onClick: () => selectTab("rejected"),
     },
   ];
 
@@ -302,15 +320,14 @@ export default function RequestsPage() {
   ];
 
   return (
-    <div>
+    <div className="dashboard-page flex flex-col">
       <Header title="Requests" subtitle="Review and manage all employee requests in one place." />
 
-      <div className="space-y-4 p-3 sm:p-4 lg:p-6">
-        {/* ── Heading ── */}
+      <div className="dashboard-content flex flex-col gap-3">
         {/* ── Metric cards ── */}
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="min-w-0 space-y-4">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="dashboard-kpi-grid">
           {loading
             ? Array.from({ length: 4 }).map((_, i) => (
                 <Card key={i} className="overflow-hidden border-[#173050] bg-gradient-to-br from-[#0c1c31] to-[#071321]">
@@ -326,13 +343,13 @@ export default function RequestsPage() {
                     key={m.label}
                     className={`overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_100%_0%,rgba(37,99,235,0.16),transparent_35%),linear-gradient(135deg,#0b1a2d,#071321)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${m.onClick ? "cursor-pointer transition-colors hover:border-blue-500/40" : ""}`}
                   >
-                    <CardContent className="min-h-[112px] p-4" onClick={m.onClick}>
+                    <CardContent className="min-h-0 p-4" onClick={m.onClick}>
                       <div className="flex items-start gap-3">
                         <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-[0_0_22px_rgba(59,130,246,0.22)] ${m.tint}`}>
                           <m.icon className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-3xl font-semibold leading-none text-white">{m.value}</p>
+                          <p className="dashboard-fluid-value font-semibold text-white">{m.value}</p>
                           <p className="mt-1 text-sm text-gray-200">{m.label}</p>
                           {"delta" in m ? (
                             <p className={`mt-2 text-[11px] ${up ? "text-emerald-400" : "text-red-400"}`}>
@@ -357,7 +374,7 @@ export default function RequestsPage() {
             {tabs.map((t) => (
               <button
                 key={t.key}
-                onClick={() => setTab(t.key)}
+                onClick={() => selectTab(t.key)}
                 className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                   tab === t.key
                     ? "border-blue-600 bg-blue-600/25 text-blue-200 shadow-[0_0_14px_rgba(37,99,235,0.28)]"
@@ -391,7 +408,7 @@ export default function RequestsPage() {
                 </CardContent>
               </Card>
             ) : (
-              visible.map((req) => {
+              pagedRequests.map((req) => {
                 const tm = displayType(req);
                 const sm = statusMeta(req.status);
                 const isPending = req.status === "pending";
@@ -499,12 +516,37 @@ export default function RequestsPage() {
                 );
               })
             )}
+            {!loading && visible.length > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#173050] pt-3">
+                <p className="text-xs text-gray-500">
+                  Showing {(Math.min(requestPage, requestPageCount) - 1) * requestPageSize + 1}
+                  -{Math.min(Math.min(requestPage, requestPageCount) * requestPageSize, visible.length)} of {visible.length} requests
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="rounded-lg border border-[#1e2d40] px-3 py-1.5 text-xs text-gray-300 disabled:opacity-40"
+                    disabled={requestPage <= 1}
+                    onClick={() => setRequestPage((current) => Math.max(1, current - 1))}
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs text-gray-500">Page {Math.min(requestPage, requestPageCount)} of {requestPageCount}</span>
+                  <button
+                    className="rounded-lg border border-[#1e2d40] px-3 py-1.5 text-xs text-gray-300 disabled:opacity-40"
+                    disabled={requestPage >= requestPageCount}
+                    onClick={() => setRequestPage((current) => Math.min(requestPageCount, current + 1))}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
           </div>
 
           {/* Request details panel */}
-          <Card className="min-h-[calc(100vh-7.5rem)] overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] xl:sticky xl:top-20 xl:self-start">
-            <CardContent className="p-5">
+          <Card className="max-h-[calc(100dvh-7.5rem)] min-h-0 overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] xl:sticky xl:top-20 xl:self-start">
+            <CardContent className="max-h-[calc(100dvh-7.5rem)] overflow-y-auto p-5">
               {!selected ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <FileText className="mb-2 h-10 w-10 text-gray-700" />

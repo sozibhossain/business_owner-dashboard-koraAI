@@ -365,7 +365,7 @@ export default function LiveViewPage() {
     {
       label: "Active Conversations",
       value: liveConvoCount,
-      icon: MessageSquare,
+      icon: MessageCircle,
       color: "bg-blue-600",
       spark: "#3b82f6",
       seed: 11,
@@ -410,20 +410,6 @@ export default function LiveViewPage() {
       />
 
       <div className="space-y-5 p-3 sm:p-4 lg:p-6">
-        {/* ── Heading ── */}
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-[22px] font-bold text-white">Live View</h2>
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            </span>
-          </div>
-          <p className="mt-0.5 text-sm text-gray-400">
-            Real-time activity from all channels. See everything happening right now.
-          </p>
-        </div>
-
         {/* ── Metric cards ── */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {isLoading

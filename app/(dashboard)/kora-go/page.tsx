@@ -602,7 +602,7 @@ export default function KoraGoPage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#091526]">
+            {/* <Card className="bg-[#091526]">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
@@ -624,7 +624,7 @@ export default function KoraGoPage() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
           </aside>
         </div>
       </div>

@@ -31,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { asArray, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
+import { useViewportPageSize } from "@/hooks/use-viewport-page-size";
 import {
   AlertTriangle,
   ArrowRight,
@@ -53,6 +54,7 @@ import {
   UserPlus,
   UserX,
   Users,
+  CalendarPlus2,
 } from "lucide-react";
 
 /* ─────────────────────────  Date helpers  ───────────────────────── */
@@ -404,6 +406,19 @@ export default function TasksPage() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [selectedKey, setSelectedKey] = useState(() => toDateKey(new Date()));
   const [view, setView] = useState<"Week" | "List" | "Month">("Week");
+  const [employeePage, setEmployeePage] = useState(1);
+  const employeePageSize = useViewportPageSize({
+    rowHeight: 66,
+    reservedHeight: 560,
+    min: 2,
+    max: 5,
+  });
+  const selectedAppointmentsPageSize = useViewportPageSize({
+    rowHeight: 44,
+    reservedHeight: 520,
+    min: 2,
+    max: 8,
+  });
 
   const weekDays = useMemo(() => buildWeek(weekStart), [weekStart]);
   const prevWeekDays = useMemo(
@@ -489,6 +504,13 @@ export default function TasksPage() {
       return { employee, cells };
     });
   }, [employees, weekDays, appointmentsByDay]);
+
+  const employeePageCount = Math.max(1, Math.ceil(employeeSchedule.length / employeePageSize));
+  const pagedEmployeeSchedule = useMemo(() => {
+    const safePage = Math.min(employeePage, employeePageCount);
+    const start = (safePage - 1) * employeePageSize;
+    return employeeSchedule.slice(start, start + employeePageSize);
+  }, [employeePage, employeePageCount, employeePageSize, employeeSchedule]);
 
   /* ── Weekly metrics ── */
 
@@ -608,11 +630,13 @@ export default function TasksPage() {
 
   const goWeek = (offset: number) => {
     const next = addDays(weekStart, offset * 7);
+    setEmployeePage(1);
     setWeekStart(next);
     setSelectedKey(toDateKey(next));
   };
   const goToday = () => {
     const start = startOfWeek(new Date());
+    setEmployeePage(1);
     setWeekStart(start);
     setSelectedKey(toDateKey(new Date()));
   };
@@ -713,7 +737,7 @@ export default function TasksPage() {
     {
       label: "Total Appointments",
       value: metrics.total,
-      icon: CalendarDays,
+      icon: CalendarPlus2,
       color: "bg-blue-600",
       spark: "#3b82f6",
       seed: 11,
@@ -814,26 +838,15 @@ export default function TasksPage() {
   /* ─────────────────────────  Render  ───────────────────────── */
 
   return (
-    <div>
+    <div className="dashboard-page flex flex-col">
       <Header
         title="Tasks"
         subtitle="Weekly overview of all appointments and tasks. Plan smarter, stay ahead."
       />
 
-      <div className="space-y-4 bg-[radial-gradient(circle_at_47%_0%,rgba(37,99,235,0.18),transparent_28%),linear-gradient(180deg,#050d1a_0%,#06101e_42%,#050b16_100%)] p-3 sm:p-4 lg:p-6">
-        {/* ── Page heading ── */}
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-[22px] font-bold text-white">Tasks</h2>
-            <CalendarDays className="h-5 w-5 text-blue-400" />
-          </div>
-          <p className="mt-0.5 text-sm text-gray-400">
-            Weekly overview of all appointments and tasks. Plan smarter, stay ahead.
-          </p>
-        </div>
-
+      <div className="dashboard-content flex flex-col gap-3 bg-[radial-gradient(circle_at_47%_0%,rgba(37,99,235,0.18),transparent_28%),linear-gradient(180deg,#050d1a_0%,#06101e_42%,#050b16_100%)]">
         {/* ── Weekly Performance Overview ── */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <div className="dashboard-kpi-grid">
           {isLoading
             ? Array.from({ length: 5 }).map((_, i) => (
                 <Card key={i} className="overflow-hidden border-[#173050] bg-gradient-to-br from-[#0c1c31] to-[#071321]">
@@ -849,7 +862,7 @@ export default function TasksPage() {
                     key={item.label}
                     className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_100%_0%,rgba(37,99,235,0.16),transparent_35%),linear-gradient(135deg,#0b1a2d,#071321)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_16px_40px_rgba(0,0,0,0.18)]"
                   >
-                    <CardContent className="min-h-[118px] px-4 pb-3 pt-4">
+                    <CardContent className="min-h-0 px-4 pb-3 pt-4">
                       <div className="flex items-start justify-between gap-1">
                         <div className="flex min-w-0 items-start gap-2.5">
                           <div
@@ -861,7 +874,7 @@ export default function TasksPage() {
                             <p className="mb-1 truncate text-[11px] leading-tight text-gray-300">
                               {item.label}
                             </p>
-                            <p className="text-3xl font-semibold leading-none text-white">
+                            <p className="dashboard-fluid-value font-semibold text-white">
                               {item.value}
                             </p>
                             {"subtext" in item && item.subtext ? (
@@ -889,27 +902,27 @@ export default function TasksPage() {
         </div>
 
         {/* ── Kora Insights ── */}
-        <Card className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_4%_50%,rgba(37,99,235,0.24),transparent_13%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-              <div className="flex h-[104px] w-[104px] shrink-0 items-center justify-center">
+        <Card className="dashboard-secondary overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_4%_50%,rgba(37,99,235,0.18),transparent_12%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <CardContent className="p-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center">
                 <Image
                   src="/kora.png"
                   alt="Kora"
-                  width={104}
-                  height={104}
+                  width={56}
+                  height={56}
                   unoptimized
-                  className="kora-image h-[104px] w-[104px] object-contain drop-shadow-[0_0_24px_rgba(59,130,246,0.45)]"
+                  className="kora-image h-14 w-14 object-contain drop-shadow-[0_0_18px_rgba(59,130,246,0.45)]"
                 />
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="mb-3 text-lg font-semibold leading-none text-white">Kora Insights</p>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <p className="mb-2 text-sm font-semibold leading-none text-white">Kora Insights</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                   {(insights.length ? insights : []).map((insight, i) => (
                     <div
                       key={i}
-                      className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                      className="flex min-h-11 items-center gap-3 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
                     >
                       <div
                         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${insight.iconBg}`}
@@ -932,21 +945,21 @@ export default function TasksPage() {
                 </div>
               </div>
 
-              <button className="flex shrink-0 items-center gap-2 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/70 px-4 py-2.5 text-sm text-gray-200 transition-colors hover:bg-[#1e2d40] lg:self-end">
+              <button className="flex shrink-0 items-center gap-2 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/70 px-3 py-2 text-xs text-gray-200 transition-colors hover:bg-[#1e2d40] lg:self-end">
                 View all insights <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
           </CardContent>
         </Card>
         {/* ── Main grid ── */}
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
           {/* Left: toolbar + capacity planner */}
-          <div className="space-y-5 lg:col-span-2">
-            <Card className="overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <div className="min-h-0">
+            <Card className="flex h-full min-h-0 flex-col overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               {/* Toolbar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1e2d40] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1e2d40] px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4 text-blue-400" />
+                  <CalendarPlus2 className="h-6 w-6 text-blue-400" />
                   <span className="text-lg font-semibold text-white">
                     {formatWeekRange(weekDays)}
                   </span>
@@ -979,7 +992,7 @@ export default function TasksPage() {
                     {(["Week", "List", "Month"] as const).map((v) => (
                       <button
                         key={v}
-                        onClick={() => setView(v)}
+                        onClick={() => { setEmployeePage(1); setView(v); }}
                         className={`rounded-md px-3 py-1 text-[11px] font-medium transition-colors ${
                           view === v
                             ? "bg-blue-600 text-white"
@@ -997,7 +1010,7 @@ export default function TasksPage() {
               </div>
 
               {/* Body */}
-              <CardContent className="p-4">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-0">
                 {isLoading ? (
                   <div className="space-y-3">
                     {Array.from({ length: 5 }).map((_, i) => (
@@ -1022,7 +1035,7 @@ export default function TasksPage() {
                 ) : view === "Month" ? (
                   /* ── Month placeholder ── */
                   <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-                    <CalendarDays className="h-10 w-10 text-gray-700" />
+                    <CalendarPlus2 className="h-10 w-10 text-gray-700" />
                     <div>
                       <p className="text-sm text-gray-300">Month view</p>
                       <p className="text-xs text-gray-500">
@@ -1035,8 +1048,9 @@ export default function TasksPage() {
                   </div>
                 ) : (
                   /* ── Week capacity grid ── */
-                  <div className="overflow-x-auto">
-                    <div className="min-w-[930px]">
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="min-h-0 flex-1 overflow-x-auto px-4 pt-3">
+                      <div className="min-w-[930px]">
                       {/* Header row */}
                       <div
                         className="grid border-b border-[#1e2d40] pb-3"
@@ -1067,14 +1081,14 @@ export default function TasksPage() {
 
                       {/* Employee rows */}
                       <div className="divide-y divide-[#1e2d40]">
-                        {employeeSchedule.map(({ employee, cells }) => (
+                        {pagedEmployeeSchedule.map(({ employee, cells }) => (
                           <div
                             key={employee._id}
-                            className="grid items-center py-2"
+                            className="grid items-center py-1.5"
                             style={{ gridTemplateColumns: "170px repeat(7, 1fr)" }}
                           >
                             <div className="flex items-center gap-2.5 px-1 pr-2">
-                              <Avatar className="h-10 w-10">
+                              <Avatar className="h-9 w-9">
                                 {employee?.userId?.profileImage?.url ? (
                                   <AvatarImage
                                     src={employee.userId.profileImage.url}
@@ -1109,7 +1123,7 @@ export default function TasksPage() {
                                       if (e.key === "Enter")
                                         setDayDetail({ employee, dateKey: cell.date });
                                     }}
-                                    className={`group relative min-h-[64px] cursor-pointer rounded-lg border p-2.5 transition-colors ${cfg.cell}`}
+                                    className={`group relative min-h-[52px] cursor-pointer rounded-lg border p-2 transition-colors ${cfg.cell}`}
                                   >
                                     <button
                                       onClick={(e) => {
@@ -1124,7 +1138,7 @@ export default function TasksPage() {
                                     >
                                       <Plus className="h-3.5 w-3.5" />
                                     </button>
-                                    <p className={`text-2xl font-semibold leading-none ${cfg.num}`}>
+                                    <p className={`text-xl font-semibold leading-none ${cfg.num}`}>
                                       {cell.info.status === "off" ? "0" : cell.info.display}
                                     </p>
                                     <p className={`mt-1 text-xs leading-tight ${cfg.label_text}`}>
@@ -1138,8 +1152,10 @@ export default function TasksPage() {
                         ))}
                       </div>
 
-                      {/* Legend */}
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#1e2d40] pt-3">
+                      </div>
+                    </div>
+                    <div className="shrink-0 border-t border-[#1e2d40] bg-[#071321]/95 px-4 py-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-4">
                           {(["free", "busy", "overbooked", "off"] as const).map((k) => (
                             <div key={k} className="flex items-center gap-1.5">
@@ -1157,6 +1173,33 @@ export default function TasksPage() {
                           Manage schedule <ArrowRight className="h-3.5 w-3.5" />
                         </a>
                       </div>
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs text-gray-500">
+                          Showing {employeeSchedule.length === 0 ? 0 : (Math.min(employeePage, employeePageCount) - 1) * employeePageSize + 1}
+                          -{Math.min(Math.min(employeePage, employeePageCount) * employeePageSize, employeeSchedule.length)} of {employeeSchedule.length} employees
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            disabled={employeePage <= 1}
+                            onClick={() => setEmployeePage((current) => Math.max(1, current - 1))}
+                          >
+                            Previous
+                          </Button>
+                          <span className="text-xs text-gray-500">Page {Math.min(employeePage, employeePageCount)} of {employeePageCount}</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            disabled={employeePage >= employeePageCount}
+                            onClick={() => setEmployeePage((current) => Math.min(employeePageCount, current + 1))}
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1165,7 +1208,7 @@ export default function TasksPage() {
           </div>
 
           {/* Right: daily schedule + quick actions */}
-          <div className="space-y-5">
+          <div className="min-h-0 space-y-3">
             {/* Daily Schedule Overview */}
             <Card className="overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               <CardContent className="p-4">
@@ -1214,14 +1257,14 @@ export default function TasksPage() {
                   />
                 </div>
 
-                <div className="mt-4 max-h-80 space-y-1 overflow-y-auto pr-1">
+                <div className="mt-4 space-y-1 pr-1">
                   {selectedAppointments.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 text-center">
                       <CalendarDays className="mb-2 h-8 w-8 text-gray-700" />
                       <p className="text-xs text-gray-500">No appointments this day.</p>
                     </div>
                   ) : (
-                    selectedAppointments.map((appt) => {
+                    selectedAppointments.slice(0, selectedAppointmentsPageSize).map((appt) => {
                       const meta = apptStatusMeta(appt.status);
                       return (
                         <div
@@ -1271,7 +1314,7 @@ export default function TasksPage() {
             </Card>
 
             {/* Quick Actions */}
-            <Card className="overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            {/* <Card className="overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               <CardContent className="p-4">
                 <p className="mb-3 text-sm font-semibold text-white">Quick Actions</p>
                 <div className="grid grid-cols-4 gap-2">
@@ -1293,7 +1336,7 @@ export default function TasksPage() {
                   ))}
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
         </div>
       </div>

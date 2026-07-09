@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Sparkles, Eye, EyeOff, Loader2 } from "lucide-react";
@@ -15,25 +15,38 @@ const loginErrorMessages: Record<string, string> = {
   user_not_found: "No account found for this email.",
   wrong_password: "Incorrect password.",
   email_not_verified: "Email not verified. Please verify your email first.",
-  role_not_allowed: "This account is not allowed in the business dashboard.",
+  role_not_allowed: "You are not a business owner. Please use a business owner account.",
   missing_credentials: "Email and password are required.",
   auth_service_unavailable: "Login service is unavailable. Please try again.",
+  session_required: "Please sign in to continue.",
+  session_expired: "Your session expired. Please sign in again.",
 };
+
+const allowedRoles = new Set(["business_owner", "employee"]);
 
 function getLoginErrorMessage(result?: {
   code?: string | null;
   error?: string | null;
   url?: string | null;
 }) {
+  const code = getLoginErrorCode(result);
+
+  return loginErrorMessages[code] || "Invalid email or password.";
+}
+
+function getLoginErrorCode(result?: {
+  code?: string | null;
+  error?: string | null;
+  url?: string | null;
+}) {
   const url = result?.url ? new URL(result.url, window.location.origin) : null;
-  const code =
+  return (
     result?.code ||
     url?.searchParams.get("code") ||
     url?.searchParams.get("error") ||
     result?.error ||
-    "credentials";
-
-  return loginErrorMessages[code] || "Invalid email or password.";
+    ""
+  );
 }
 
 export default function LoginPage() {
@@ -43,6 +56,12 @@ export default function LoginPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
+
+  function showLoginError(code: string) {
+    const message = loginErrorMessages[code] || "Invalid email or password.";
+    setFormError(message);
+    toast.error(message);
+  }
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -64,16 +83,32 @@ export default function LoginPage() {
         email,
         password,
         redirect: false,
+        callbackUrl: "/dashboard",
       });
-      if (result?.ok) {
-        toast.success("Login successful!");
-        router.refresh();
-        router.replace("/dashboard");
-      } else {
+      const authErrorCode = getLoginErrorCode(result);
+      if (!result?.ok || authErrorCode) {
         const message = getLoginErrorMessage(result);
         setFormError(message);
         toast.error(message);
+        return;
       }
+
+      const session = await getSession();
+      const role = session?.user?.role ?? "";
+
+      if (!session) {
+        showLoginError("session_required");
+        return;
+      }
+
+      if (!allowedRoles.has(role)) {
+        showLoginError("role_not_allowed");
+        return;
+      }
+
+      toast.success("Login successful!");
+      router.replace("/dashboard");
+      router.refresh();
     } catch {
       const message = "Something went wrong. Please try again.";
       setFormError(message);

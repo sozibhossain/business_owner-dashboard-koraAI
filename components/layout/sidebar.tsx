@@ -1,12 +1,15 @@
 ﻿"use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { signOut, useSession } from "next-auth/react";
 import {
   Calendar,
+  CalendarCheck,
+  CalendarPlus2,
   CheckSquare,
   ChevronDown,
   ChevronLeft,
@@ -15,6 +18,7 @@ import {
   CreditCard,
   Crown,
   DollarSign,
+  Euro,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -42,17 +46,17 @@ const navItems = [
     badgeColor: "bg-blue-600 text-white",
   },
   { href: "/live-view", label: "Live View", icon: Radio, dot: true },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare },
-  { href: "/calendar", label: "Calendar", icon: Calendar },
+  { href: "/tasks", label: "Tasks", icon: CalendarPlus2 },
+  { href: "/calendar", label: "Calendar", icon: CalendarPlus2 },
   { href: "/inbox", label: "Inbox", icon: Mail, badgeKey: "inbox" as const },
   { href: "/employees", label: "Employees", icon: Users },
   {
     href: "/requests",
     label: "Requests",
-    icon: ClipboardList,
+    icon: CalendarCheck,
     badgeKey: "requests" as const,
   },
-  { href: "/accounting", label: "Accounting", icon: DollarSign },
+  { href: "/accounting", label: "Accounting", icon: Euro },
   {
     href: "/kora-go",
     label: "Kora Go",
@@ -62,8 +66,6 @@ const navItems = [
       "bg-emerald-950/80 text-emerald-400 border border-emerald-500/30",
   },
   { href: "/services", label: "Services", icon: Scissors },
-  // { href: "/subscription", label: "Subscription", icon: CreditCard },
-  { href: "/website", label: "Website", icon: CreditCard }, // Replaced placeholder icon with correct matching sidebar icon
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -150,7 +152,7 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "z-50 flex h-screen flex-col border-r border-[#152233] bg-[#030914] transition-[transform,width] duration-300 rounded-r-3xl",
+          "z-50 flex h-dvh flex-col border-r border-[#152233] bg-[#030914] transition-[transform,width] duration-300 rounded-r-3xl",
           collapsed ? "w-16" : "w-64",
           "fixed inset-y-0 left-0 lg:relative lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
@@ -159,12 +161,19 @@ export function Sidebar() {
         {/* Header section */}
         <div
           className={cn(
-            "flex items-center gap-3 px-5 py-6",
+            "flex items-center gap-3 px-5 py-[clamp(0.75rem,2.4dvh,1.5rem)]",
             collapsed && "justify-center px-2",
           )}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.4)]">
-            <Sparkles className="h-5 w-5 text-white" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#071321] shadow-[0_0_15px_rgba(37,99,235,0.45)] ring-1 ring-cyan-400/20">
+            <Image
+              src="/kora-logo.png"
+              alt="KoraAI"
+              width={36}
+              height={36}
+              className="h-full w-full object-cover"
+              priority
+            />
           </div>
           {!collapsed && (
             <div className="flex-1">
@@ -200,7 +209,7 @@ export function Sidebar() {
         </div>
 
         {/* Navigation Items */}
-        <nav className="scrollbar-none flex-1 overflow-y-auto px-3 py-2">
+        <nav className="scrollbar-none min-h-0 flex-1 overflow-y-auto px-3 py-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active =
@@ -214,7 +223,7 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "mb-1 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200",
+                  "mb-1 flex items-center gap-3 rounded-xl px-4 py-[clamp(0.45rem,1.35dvh,0.75rem)] text-[clamp(0.75rem,1.45dvh,0.875rem)] font-medium transition-all duration-200",
                   active
                     ? "bg-gradient-to-r from-blue-600/30 to-blue-600/5 text-blue-400 border border-blue-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                     : "text-gray-400 hover:bg-[#111c2e]/60 hover:text-gray-100",
@@ -261,7 +270,7 @@ export function Sidebar() {
         <div>
           {collapsed ? (
             <div className="flex flex-col items-center gap-4">
-              <Avatar className="h-10 w-10 shrink-0 ring-2 ring-blue-500/20">
+              <Avatar className="h-[clamp(2rem,4dvh,2.5rem)] w-[clamp(2rem,4dvh,2.5rem)] shrink-0 ring-2 ring-blue-500/20">
                 {displayImage ? (
                   <AvatarImage src={displayImage} alt={displayName} />
                 ) : null}
@@ -276,10 +285,10 @@ export function Sidebar() {
               </button>
             </div>
           ) : (
-            <div className=" p-3.5 pb-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+            <div className="p-3.5 pb-[clamp(0.75rem,2.8dvh,1.75rem)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
               <div className="border border-[#1a293d] px-3 rounded-xl bg-[#0b1a2c] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 <div className="flex items-center gap-3 pt-2">
-                  <Avatar className="h-11 w-11 shrink-0 border border-blue-400/20 rounded-xl">
+                  <Avatar className="h-[clamp(2rem,4.6dvh,2.75rem)] w-[clamp(2rem,4.6dvh,2.75rem)] shrink-0 border border-blue-400/20 rounded-xl">
                     {displayImage ? (
                       <AvatarImage src={displayImage} alt={displayName} />
                     ) : null}
@@ -298,7 +307,7 @@ export function Sidebar() {
 
                 <Link
                   href="/subscription"
-                  className="-mx-3.5 mt-5 flex h-12 items-center justify-center gap-3 rounded-xl border border-[#0758ba] bg-[#012758] px-4 text-sm font-bold text-white shadow-[0_0_18px_rgba(1,39,88,0.55)] transition-colors hover:bg-[#06366f] active:scale-[0.99]"
+                  className="-mx-3.5 mt-[clamp(0.75rem,2.2dvh,1.25rem)] flex h-[clamp(2.25rem,5dvh,3rem)] items-center justify-center gap-3 rounded-xl border border-[#0758ba] bg-[#012758] px-4 text-sm font-bold text-white shadow-[0_0_18px_rgba(1,39,88,0.55)] transition-colors hover:bg-[#06366f] active:scale-[0.99]"
                 >
                   <Crown className="h-5 w-5 text-cyan-300" strokeWidth={2} />
                   Upgrade Plan
@@ -307,7 +316,7 @@ export function Sidebar() {
 
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
-                className="mt-10 flex w-full items-center gap-4 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-gray-100 transition-colors hover:bg-[#111d2f]/70 hover:text-red-300"
+                className="mt-[clamp(0.75rem,4dvh,2.5rem)] flex w-full items-center gap-4 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-gray-100 transition-colors hover:bg-[#111d2f]/70 hover:text-red-300"
               >
                 <LogOut
                   className="h-5 w-5 shrink-0 text-gray-200"

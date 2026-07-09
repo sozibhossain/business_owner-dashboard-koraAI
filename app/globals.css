@@ -1,12 +1,28 @@
 @import "tailwindcss";
 
 :root { --background: #050d1a; --foreground: #e2e8f0; }
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
 body { background: var(--background); color: var(--foreground); font-family: system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 * { box-sizing: border-box; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #0d1a2d; }
 ::-webkit-scrollbar-thumb { background: #1e2d40; border-radius: 4px; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: #e5edf8;
+  caret-color: #e5edf8;
+  box-shadow: 0 0 0 1000px #081523 inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
 
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -36,4 +52,88 @@ body { background: var(--background); color: var(--foreground); font-family: sys
 .kora-image:hover {
   transform: translateY(-4px) scale(1.05);
   filter: drop-shadow(0 0 32px rgba(124, 58, 237, 0.65));
+}
+
+@layer components {
+  .dashboard-page {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: #050d1a;
+  }
+
+  .dashboard-content {
+    height: calc(100dvh - var(--dashboard-header-height, clamp(3.5rem, 8dvh, 5rem)));
+    min-height: 0;
+    overflow: hidden;
+    padding: clamp(0.75rem, 1.6vw, 1.25rem);
+  }
+
+  .dashboard-grid {
+    display: grid;
+    min-height: 0;
+    gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  }
+
+  .dashboard-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: clamp(0.6rem, 1.2vw, 1rem);
+  }
+
+  .dashboard-card-compact {
+    min-height: 0;
+  }
+
+  .dashboard-card-compact > div {
+    padding: clamp(0.75rem, 1.4vw, 1.25rem);
+  }
+
+  .dashboard-fluid-title {
+    font-size: clamp(1rem, 1.1vw + 0.75rem, 1.55rem);
+    line-height: 1.15;
+  }
+
+  .dashboard-fluid-value {
+    font-size: clamp(1.25rem, 1.8vw + 0.75rem, 2rem);
+    line-height: 1;
+  }
+
+  .dashboard-icon {
+    width: clamp(2rem, 3.8vw, 3rem);
+    height: clamp(2rem, 3.8vw, 3rem);
+  }
+
+  .dashboard-chart {
+    height: clamp(8.5rem, 22dvh, 16rem);
+    min-height: 0;
+  }
+
+  .dashboard-secondary {
+    display: block;
+  }
+
+  .settings-help-card {
+    display: none;
+  }
+}
+
+@media (min-width: 1536px) and (min-height: 1100px) {
+  .settings-help-card {
+    display: block;
+  }
+}
+
+@media (max-height: 760px) {
+  :root {
+    --dashboard-header-height: 3.5rem;
+  }
+
+  .dashboard-content {
+    padding: clamp(0.5rem, 1.2vw, 0.875rem);
+  }
+
+  .dashboard-secondary {
+    display: none;
+  }
 }

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { getInitials, formatCurrency, formatDate, asArray } from "@/lib/utils";
 import { toast } from "sonner";
+import { useViewportPageSize } from "@/hooks/use-viewport-page-size";
 import {
   AlertTriangle,
   ArrowRight,
@@ -124,6 +125,13 @@ export default function EmployeesPage() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [view, setView] = useState<"cards" | "schedule">("cards");
+  const [employeePage, setEmployeePage] = useState(1);
+  const employeePageSize = useViewportPageSize({
+    rowHeight: 118,
+    reservedHeight: 480,
+    min: 3,
+    max: 8,
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<"overview" | "schedule" | "performance" | "settings">("overview");
 
@@ -245,6 +253,13 @@ export default function EmployeesPage() {
     });
   }, [employees, roleFilter, statusFilter, search]);
 
+  const employeePageCount = Math.max(1, Math.ceil(filtered.length / employeePageSize));
+  const pagedEmployees = useMemo(() => {
+    const safePage = Math.min(employeePage, employeePageCount);
+    const start = (safePage - 1) * employeePageSize;
+    return filtered.slice(start, start + employeePageSize);
+  }, [employeePage, employeePageCount, employeePageSize, filtered]);
+
   /* ── Mutations ── */
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["employees-all"] });
@@ -301,7 +316,7 @@ export default function EmployeesPage() {
   });
 
   return (
-    <div>
+    <div className="dashboard-page flex flex-col">
       <Header
         title="Employees"
         subtitle="Manage your team, track performance and optimize schedules."
@@ -327,12 +342,11 @@ export default function EmployeesPage() {
         }
       />
 
-      <div className="space-y-5 p-3 sm:p-4 lg:p-6">
-        {/* ── Heading + Add ── */}
+      <div className="dashboard-content flex flex-col gap-3">
         {/* ── Metric cards ── */}
         <div className={`grid grid-cols-1 gap-5 ${selected ? "xl:grid-cols-[minmax(0,1fr)_430px]" : ""}`}>
           <div className="min-w-0 space-y-5">
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <div className="dashboard-kpi-grid">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (
                 <Card key={i}><CardContent className="p-4"><Skeleton className="h-14 w-full" /></CardContent></Card>
@@ -348,7 +362,7 @@ export default function EmployeesPage() {
                           </div>
                           <p className="truncate text-xs font-medium text-gray-300">{m.label}</p>
                         </div>
-                        <p className="text-3xl font-semibold leading-none text-white">{m.value}</p>
+                        <p className="dashboard-fluid-value font-semibold text-white">{m.value}</p>
                         <p className="mt-3 text-[11px] text-emerald-400">{m.helper}</p>
                       </div>
                       <SparkLine seed={m.seed} color={m.spark} />
@@ -405,13 +419,13 @@ export default function EmployeesPage() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-60 flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search employees..." className="h-10 rounded-lg border-[#1e2d40] bg-[#0d1526] pl-9 text-sm" />
+            <Input value={search} onChange={(e) => { setEmployeePage(1); setSearch(e.target.value); }} placeholder="Search employees..." className="h-10 rounded-lg border-[#1e2d40] bg-[#0d1526] pl-9 text-sm" />
           </div>
-          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-4 text-xs text-gray-300 focus:outline-none">
+          <select value={roleFilter} onChange={(e) => { setEmployeePage(1); setRoleFilter(e.target.value); }} className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-4 text-xs text-gray-300 focus:outline-none">
             <option value="all">All Roles</option>
             {roles.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-4 text-xs text-gray-300 focus:outline-none">
+          <select value={statusFilter} onChange={(e) => { setEmployeePage(1); setStatusFilter(e.target.value); }} className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-4 text-xs text-gray-300 focus:outline-none">
             <option value="all">All Status</option>
             <option value="working">Working</option>
             <option value="on_break">On Break</option>
@@ -422,10 +436,10 @@ export default function EmployeesPage() {
             <Filter className="h-3.5 w-3.5" /> Filters
           </button>
           <div className="ml-auto flex h-10 items-center gap-0.5 rounded-lg bg-[#0d1a2d] p-0.5">
-            <button onClick={() => setView("cards")} className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-[11px] font-medium transition-colors ${view === "cards" ? "bg-blue-600 text-white shadow-[0_0_14px_rgba(37,99,235,0.45)]" : "text-gray-400"}`}>
+            <button onClick={() => { setEmployeePage(1); setView("cards"); }} className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-[11px] font-medium transition-colors ${view === "cards" ? "bg-blue-600 text-white shadow-[0_0_14px_rgba(37,99,235,0.45)]" : "text-gray-400"}`}>
               <LayoutGrid className="h-3.5 w-3.5" /> Cards View
             </button>
-            <button onClick={() => setView("schedule")} className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-[11px] font-medium transition-colors ${view === "schedule" ? "bg-blue-600 text-white shadow-[0_0_14px_rgba(37,99,235,0.45)]" : "text-gray-400"}`}>
+            <button onClick={() => { setEmployeePage(1); setView("schedule"); }} className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-[11px] font-medium transition-colors ${view === "schedule" ? "bg-blue-600 text-white shadow-[0_0_14px_rgba(37,99,235,0.45)]" : "text-gray-400"}`}>
               <CalendarClock className="h-3.5 w-3.5" /> Schedule View
             </button>
           </div>
@@ -448,7 +462,7 @@ export default function EmployeesPage() {
               /* Schedule view */
               <Card><CardContent className="p-0">
                 <div className="divide-y divide-[#1e2d40]">
-                  {filtered.map((e) => {
+                  {pagedEmployees.map((e) => {
                     const sm = statusMeta(e.status);
                     const count = todayCountByUser[String(e.userId?._id)] || 0;
                     const am = attendanceMeta(attendanceByUser[String(e.userId?._id)]);
@@ -474,7 +488,7 @@ export default function EmployeesPage() {
             ) : (
               /* Cards view */
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {filtered.map((e) => {
+                {pagedEmployees.map((e) => {
                   const sm = statusMeta(e.status);
                   const util = e.utilizationRate || 0;
                   const count = todayCountByUser[String(e.userId?._id)] || 0;
@@ -547,9 +561,33 @@ export default function EmployeesPage() {
               </div>
             )}
 
-            <p className="mt-4 text-center text-xs text-gray-500">
-              Showing {filtered.length} of {employees.length} employees
-            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#173050] pt-4">
+              <p className="text-xs text-gray-500">
+                Showing {filtered.length === 0 ? 0 : (Math.min(employeePage, employeePageCount) - 1) * employeePageSize + 1}
+                -{Math.min(Math.min(employeePage, employeePageCount) * employeePageSize, filtered.length)} of {filtered.length} employees
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  disabled={employeePage <= 1}
+                  onClick={() => setEmployeePage((current) => Math.max(1, current - 1))}
+                >
+                  Previous
+                </Button>
+                <span className="text-xs text-gray-500">Page {Math.min(employeePage, employeePageCount)} of {employeePageCount}</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  disabled={employeePage >= employeePageCount}
+                  onClick={() => setEmployeePage((current) => Math.min(employeePageCount, current + 1))}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           </div>
           </div>
           </div>
@@ -625,8 +663,8 @@ function ProfilePanel({
   ];
 
   return (
-    <Card className="min-h-[calc(100vh-7.5rem)] self-start overflow-hidden border-[#173050] bg-gradient-to-br from-[#071321] to-[#0b1a2f] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] xl:sticky xl:top-20">
-      <CardContent className="p-4">
+    <Card className="max-h-[calc(100dvh-7.5rem)] min-h-0 self-start overflow-hidden border-[#173050] bg-gradient-to-br from-[#071321] to-[#0b1a2f] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] xl:sticky xl:top-20">
+      <CardContent className="max-h-[calc(100dvh-7.5rem)] overflow-y-auto p-4">
         {/* Header */}
         <div className="flex items-start gap-3">
           <Avatar className="h-20 w-20 ring-1 ring-white/10">

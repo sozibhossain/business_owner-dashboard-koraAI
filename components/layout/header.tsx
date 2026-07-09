@@ -50,7 +50,7 @@ export function Header({ title, subtitle, action }: HeaderProps) {
         : String(displayRole).replace(/_/g, " ");
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-2 bg-[#070f1c] px-3 sm:gap-4 sm:px-6">
+    <header className="sticky top-0 z-30 flex h-[var(--dashboard-header-height,clamp(3.5rem,8dvh,5rem))] shrink-0 items-center gap-2 bg-[#070f1c] px-3 sm:gap-4 sm:px-6">
       <button
         type="button"
         onClick={() => setIsOpen(true)}
@@ -61,9 +61,9 @@ export function Header({ title, subtitle, action }: HeaderProps) {
       </button>
 
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-base font-semibold text-white sm:text-lg">{title}</h1>
+        <h2 className="truncate dashboard-fluid-title font-bold text-white">{title}</h2>
         {subtitle ? (
-          <p className="hidden truncate text-xs text-gray-500 sm:block">{subtitle}</p>
+          <p className="mt-0.5 hidden truncate text-sm text-gray-400 sm:block">{subtitle}</p>
         ) : null}
       </div>
 
@@ -73,6 +73,9 @@ export function Header({ title, subtitle, action }: HeaderProps) {
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
           <Input
+            type="search"
+            name="kora-dashboard-search"
+            autoComplete="off"
             placeholder="Search anything..."
             className="h-8 border-[#1e2d40] bg-[#0d1526] pl-9 text-xs"
           />
