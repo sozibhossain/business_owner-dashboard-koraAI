@@ -152,34 +152,32 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "z-50 flex h-dvh flex-col border-r border-[#152233] bg-[#030914] transition-[transform,width] duration-300 rounded-r-3xl",
-          collapsed ? "w-16" : "w-64",
+          "z-50 flex h-dvh flex-col border-r border-[#14304c] bg-[#061326] transition-[transform,width] duration-300",
+          collapsed ? "w-16" : "w-[264px]",
           "fixed inset-y-0 left-0 lg:relative lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
-        {/* Header section */}
         <div
           className={cn(
-            "flex items-center gap-3 px-5 py-[clamp(0.75rem,2.4dvh,1.5rem)]",
+            "flex items-center gap-3 px-6 py-[clamp(0.75rem,2.4dvh,1.5rem)]",
             collapsed && "justify-center px-2",
           )}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#071321] shadow-[0_0_15px_rgba(37,99,235,0.45)] ring-1 ring-cyan-400/20">
+          <div className="relative flex h-[clamp(2rem,4dvh,2.5rem)] w-[clamp(2rem,4dvh,2.5rem)] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#071321] shadow-[0_0_18px_rgba(0,183,255,0.35)] ring-1 ring-cyan-400/25">
             <Image
               src="/kora-logo.png"
               alt="KoraAI"
-              width={36}
-              height={36}
+              width={40}
+              height={40}
               className="h-full w-full object-cover"
               priority
             />
           </div>
           {!collapsed && (
-            <div className="flex-1">
-              <span className="text-base font-bold tracking-wide text-white">
-                KoraAI
-              </span>
+            <div>
+              <span className="text-[clamp(1.1rem,2.6dvh,1.75rem)] font-semibold leading-none text-white">KoraAI</span>
+              <p className="mt-1 text-[14px] text-[#a8b5c6]">Business Owner Dashboard</p>
             </div>
           )}
           <button
@@ -195,10 +193,10 @@ export function Sidebar() {
           <button
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
-              "ml-auto hidden h-7 w-7 items-center justify-center rounded-full bg-[#111c2e] text-gray-400 hover:text-gray-200 lg:inline-flex",
+              "ml-auto hidden h-8 w-8 items-center justify-center rounded-full border border-[#14304c] text-[#8fa0b6] transition-colors hover:text-gray-300 lg:inline-flex",
               collapsed && "ml-0",
             )}
-            aria-label={collapsed ? "Expand" : "Collapse"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (
               <ChevronRight className="h-4 w-4" />
@@ -208,7 +206,6 @@ export function Sidebar() {
           </button>
         </div>
 
-        {/* Navigation Items */}
         <nav className="scrollbar-none min-h-0 flex-1 overflow-y-auto px-3 py-2">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -223,10 +220,10 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "mb-1 flex items-center gap-3 rounded-xl px-4 py-[clamp(0.45rem,1.35dvh,0.75rem)] text-[clamp(0.75rem,1.45dvh,0.875rem)] font-medium transition-all duration-200",
+                  "mx-2 mb-0.5 flex items-center gap-3 rounded-lg px-3 py-[clamp(0.45rem,1.25dvh,0.625rem)] text-[clamp(0.75rem,1.45dvh,0.875rem)] transition-all",
                   active
-                    ? "bg-gradient-to-r from-blue-600/30 to-blue-600/5 text-blue-400 border border-blue-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-                    : "text-gray-400 hover:bg-[#111c2e]/60 hover:text-gray-100",
+                    ? "border border-[#126dff] bg-[#07337a] text-[#d9ecff] shadow-[inset_0_0_24px_rgba(17,104,255,0.22)]"
+                    : "text-[#c4ccda] hover:bg-[#0b1e36] hover:text-gray-100",
                   collapsed && "justify-center px-2",
                 )}
                 title={collapsed ? item.label : undefined}
@@ -234,8 +231,8 @@ export function Sidebar() {
                 <div className="relative shrink-0">
                   <Icon
                     className={cn(
-                      "h-[18px] w-[18px]",
-                      active ? "text-blue-400" : "text-gray-400",
+                      "h-[clamp(1rem,2.2dvh,1.5rem)] w-[clamp(1rem,2.2dvh,1.5rem)]",
+                      active ? "text-[#d9ecff]" : "text-[#c4ccda]",
                     )}
                   />
                   {item.dot ? (
@@ -243,21 +240,21 @@ export function Sidebar() {
                   ) : null}
                 </div>
                 {!collapsed && (
-                  <span className="flex-1 truncate">{item.label}</span>
+                  <span className="flex-1 truncate text-[clamp(0.82rem,1.55dvh,1rem)]">{item.label}</span>
                 )}
 
                 {/* Custom/Static Badges or Dynamic Count Badges */}
                 {!collapsed && item.staticBadge ? (
                   <span
                     className={cn(
-                      "rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase",
+                      "rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase",
                       item.badgeColor,
                     )}
                   >
                     {item.staticBadge}
                   </span>
                 ) : !collapsed && dynamicBadge ? (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white px-1">
+                  <span className="rounded-full bg-blue-600/30 px-1.5 py-0.5 text-[10px] font-semibold text-blue-400">
                     {dynamicBadge}
                   </span>
                 ) : null}
@@ -266,7 +263,6 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Footer Profile Section */}
         <div>
           {collapsed ? (
             <div className="flex flex-col items-center gap-4">
@@ -278,15 +274,15 @@ export function Sidebar() {
               </Avatar>
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
-                className="flex h-10 w-10 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-[#111d2f] hover:text-red-400"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-[#c7d0df] transition-colors hover:bg-[#0b1e36] hover:text-red-300"
                 aria-label="Logout"
               >
                 <LogOut className="h-5 w-5" />
               </button>
             </div>
           ) : (
-            <div className="p-3.5 pb-[clamp(0.75rem,2.8dvh,1.75rem)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-              <div className="border border-[#1a293d] px-3 rounded-xl bg-[#0b1a2c] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+            <div className="p-[clamp(0.75rem,2.4dvh,1.5rem)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <div className="rounded-lg border border-[#14304c] bg-[#071a31] px-3 shadow-[inset_0_0_20px_rgba(17,104,255,0.12)]">
                 <div className="flex items-center gap-3 pt-2">
                   <Avatar className="h-[clamp(2rem,4.6dvh,2.75rem)] w-[clamp(2rem,4.6dvh,2.75rem)] shrink-0 border border-blue-400/20 rounded-xl">
                     {displayImage ? (
@@ -295,19 +291,19 @@ export function Sidebar() {
                     <AvatarFallback>{getInitials(accountTitle)}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-white">
+                    <p className="truncate text-[clamp(0.82rem,1.55dvh,1rem)] font-semibold text-white">
                       {accountTitle}
                     </p>
-                    <p className="mt-0.5 truncate text-xs text-gray-400 font-medium">
+                    <p className="mt-0.5 truncate text-[12px] font-medium text-[#a8b5c6]">
                       {accountSubtitle}
                     </p>
                   </div>
-                  <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                  <ChevronDown className="h-4 w-4 shrink-0 text-[#8fa0b6]" />
                 </div>
 
                 <Link
                   href="/subscription"
-                  className="-mx-3.5 mt-[clamp(0.75rem,2.2dvh,1.25rem)] flex h-[clamp(2.25rem,5dvh,3rem)] items-center justify-center gap-3 rounded-xl border border-[#0758ba] bg-[#012758] px-4 text-sm font-bold text-white shadow-[0_0_18px_rgba(1,39,88,0.55)] transition-colors hover:bg-[#06366f] active:scale-[0.99]"
+                  className="-mx-3 mt-[clamp(0.75rem,2.2dvh,1.25rem)] flex h-[clamp(2.25rem,5dvh,3rem)] items-center justify-center gap-3 rounded-lg border border-[#126dff] bg-[#07337a] px-4 text-[clamp(0.82rem,1.55dvh,1rem)] font-semibold text-[#d9ecff] shadow-[inset_0_0_24px_rgba(17,104,255,0.22)] transition-colors hover:bg-[#0b438d] active:scale-[0.99]"
                 >
                   <Crown className="h-5 w-5 text-cyan-300" strokeWidth={2} />
                   Upgrade Plan
@@ -316,7 +312,7 @@ export function Sidebar() {
 
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
-                className="mt-[clamp(0.75rem,4dvh,2.5rem)] flex w-full items-center gap-4 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-gray-100 transition-colors hover:bg-[#111d2f]/70 hover:text-red-300"
+                className="mt-[clamp(0.75rem,4dvh,2.5rem)] flex w-full items-center gap-4 rounded-lg px-3 py-2.5 text-left text-[clamp(0.82rem,1.55dvh,1rem)] font-semibold text-[#c7d0df] transition-colors hover:bg-[#0b1e36] hover:text-red-300"
               >
                 <LogOut
                   className="h-5 w-5 shrink-0 text-gray-200"

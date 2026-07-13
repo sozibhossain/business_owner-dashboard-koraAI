@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { appointmentsApi, calendarApi, employeesApi } from "@/lib/api";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,21 +13,27 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { asArray, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   ArrowRight,
+  Bell,
   CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   Coffee,
+  Eye,
   Filter,
+  Globe2,
+  Palette,
   Plus,
   RefreshCw,
   Settings,
   Settings2,
+  ShieldCheck,
   Sparkles,
   StopCircle,
   User,
@@ -67,6 +74,14 @@ const STATUS_FILTER_OPTIONS = [
   { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" },
   { value: "no_show", label: "No Show" },
+];
+
+const APPOINTMENT_TYPE_PRESETS = [
+  { name: "Customer Appointment", color: "#2563eb", duration: "60 min", visibility: "Customer" },
+  { name: "Service Consultation", color: "#16a34a", duration: "45 min", visibility: "Customer" },
+  { name: "Employee Shift", color: "#7c3aed", duration: "All day", visibility: "Team" },
+  { name: "Business Review", color: "#f97316", duration: "60 min", visibility: "Owner" },
+  { name: "Break", color: "#f59e0b", duration: "30 min", visibility: "Team" },
 ];
 
 const FALLBACK_INSIGHTS = [
@@ -165,10 +180,53 @@ const formatBlockRange = (block: any) => {
 
 const getBlockIcon = (block: any) => (block.color === BREAK_COLOR ? Coffee : StopCircle);
 
+const readId = (value: any) =>
+  value ? String(value._id || value.id || value.userId?._id || value.userId || value) : "";
+
+const appointmentEmployeeIds = (appointment: any) => {
+  const employee = appointment?.employee;
+  return new Set(
+    [
+      employee?._id,
+      employee?.id,
+      employee?.userId?._id,
+      employee?.userId,
+      typeof employee === "string" ? employee : "",
+    ]
+      .filter(Boolean)
+      .map(String),
+  );
+};
+
+const hasTeamAppointmentFields = (appointment: any) =>
+  Boolean(appointment?.employee || appointment?.customer || appointment?.client);
+
+const getAppointmentName = (appointment: any) =>
+  appointment.customer?.name || appointment.client?.name || appointment.title || "Appointment";
+
+const getAppointmentMeta = (appointment: any) => {
+  const serviceName =
+    typeof appointment.service === "string" ? appointment.service : appointment.service?.name;
+  return serviceName || appointment.bookingNotes || appointment.notes || "Personal appointment";
+};
+
 export default function CalendarPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { data: session } = useSession();
+  const sessionUser = session?.user as { _id?: string; id?: string } | undefined;
+  const currentUserId = String(sessionUser?._id || sessionUser?.id || "");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showAppointmentTypesDialog, setShowAppointmentTypesDialog] = useState(false);
+  const [showCalendarSettingsDialog, setShowCalendarSettingsDialog] = useState(false);
+  const [appointmentTypes, setAppointmentTypes] = useState(APPOINTMENT_TYPE_PRESETS);
+  const [newAppointmentType, setNewAppointmentType] = useState("");
+  const [newAppointmentTypeDuration, setNewAppointmentTypeDuration] = useState("60 min");
+  const [newAppointmentTypeVisibility, setNewAppointmentTypeVisibility] = useState("Customer");
+  const [newAppointmentTypeColor, setNewAppointmentTypeColor] = useState("#2563eb");
+  const [createDialogMode, setCreateDialogMode] = useState<"personal" | "team">("personal");
+  const [appointmentDefaultDate, setAppointmentDefaultDate] = useState<Date | null>(null);
+  const [calendarScope, setCalendarScope] = useState<"team" | "my">("team");
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [view, setView] = useState<(typeof VIEWS)[number]>("Week");
   const [anchorDate, setAnchorDate] = useState(() => new Date());
@@ -181,12 +239,29 @@ export default function CalendarPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
   const [blockDialogType, setBlockDialogType] = useState<"block" | "break" | null>(null);
+  const [calendarSettings, setCalendarSettings] = useState({
+    defaultView: "Week",
+    timeZone: "Asia/Dhaka",
+    weekStartsOn: "Monday",
+    workingStart: "09:00",
+    workingEnd: "18:00",
+    defaultDuration: "60",
+    reminder: "15",
+    eventDensity: "Comfortable",
+    syncGoogle: true,
+    showWeekends: true,
+    showDeclined: false,
+    publicBooking: true,
+    employeeCanEdit: true,
+    requireCustomer: true,
+  });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("create") !== "appointment") return;
 
     const openTimer = window.setTimeout(() => {
+      setCreateDialogMode("personal");
       setShowCreateDialog(true);
       params.delete("create");
       const query = params.toString();
@@ -194,6 +269,30 @@ export default function CalendarPage() {
     }, 0);
     return () => window.clearTimeout(openTimer);
   }, [router]);
+
+  const openPersonalAppointmentDialog = (date?: Date | null) => {
+    setShowCreateDialog(false);
+    setAppointmentDefaultDate(date || selectedDate || null);
+    setCreateDialogMode("personal");
+    window.setTimeout(() => setShowCreateDialog(true), 0);
+  };
+
+  const openTeamAppointmentDialog = (date?: Date | null) => {
+    setShowCreateDialog(false);
+    setAppointmentDefaultDate(date || selectedDate || null);
+    setCreateDialogMode("team");
+    window.setTimeout(() => setShowCreateDialog(true), 0);
+  };
+
+  const openScopedAppointmentDialog = (date?: Date | null) => {
+    const targetDate = date || selectedDate || null;
+    if (calendarScope === "team") {
+      openTeamAppointmentDialog(targetDate);
+      return;
+    }
+
+    openPersonalAppointmentDialog(targetDate);
+  };
 
   const { rangeStart, rangeEnd } = useMemo(() => {
     switch (view) {
@@ -295,43 +394,78 @@ export default function CalendarPage() {
   const insights: any[] = asArray(insightsResponse?.data);
   const employees: any[] = asArray(employeesResponse?.data);
   const blocks: any[] = useMemo(
-    () => asArray(blocksResponse?.data).filter((event: any) => !event.related_appointment_id),
-    [blocksResponse?.data]
+    () =>
+      calendarScope === "my"
+        ? asArray(blocksResponse?.data).filter((event: any) => !event.related_appointment_id)
+        : [],
+    [blocksResponse?.data, calendarScope]
   );
 
   const teamMembers = useMemo(() => {
     if (!employees.length) {
-      return [{ id: "me", name: "Me", color: TEAM_COLOR_POOL[0], imageUrl: "" }];
+      return [{ id: "me", ids: ["me"], name: "Me", color: TEAM_COLOR_POOL[0], imageUrl: "" }];
     }
-    return employees.slice(0, 6).map((employee, index) => ({
-      id: String(employee.userId?._id || employee._id || index),
-      name: employee.userId?.name || "Employee",
-      imageUrl: employee.userId?.profileImage?.url || "",
-      color: TEAM_COLOR_POOL[index % TEAM_COLOR_POOL.length],
-    }));
+    return employees.slice(0, 6).map((employee, index) => {
+      const employeeId = readId(employee);
+      const userId = readId(employee.userId);
+      const ids = Array.from(new Set([employeeId, userId].filter(Boolean)));
+      return {
+        id: userId || employeeId || String(index),
+        ids,
+        name: employee.userId?.name || employee.name || "Employee",
+        imageUrl: employee.userId?.profileImage?.url || employee.profileImage?.url || "",
+        color: TEAM_COLOR_POOL[index % TEAM_COLOR_POOL.length],
+      };
+    });
   }, [employees]);
 
   const memberColorMap = useMemo(() => {
     const map = new Map<string, string>();
-    teamMembers.forEach((member) => map.set(member.id, member.color));
+    teamMembers.forEach((member) => {
+      member.ids.forEach((id) => map.set(id, member.color));
+    });
     return map;
   }, [teamMembers]);
 
+  const isMyAppointment = useCallback(
+    (appointment: any) => {
+      const employeeIds = appointmentEmployeeIds(appointment);
+
+      if (currentUserId) {
+        if (employeeIds.has(currentUserId)) return true;
+      }
+
+      return !hasTeamAppointmentFields(appointment);
+    },
+    [currentUserId],
+  );
+
+  const scopedAppointments = useMemo(() => {
+    if (calendarScope === "my") {
+      return appointments.filter(isMyAppointment);
+    }
+    return appointments.filter((appointment) => hasTeamAppointmentFields(appointment));
+  }, [appointments, calendarScope, isMyAppointment]);
+
   const serviceOptions = useMemo(() => {
     const set = new Set<string>();
-    appointments.forEach((appointment) => {
+    scopedAppointments.forEach((appointment) => {
       const name =
         typeof appointment.service === "string" ? appointment.service : appointment.service?.name;
       if (name) set.add(name);
     });
     return Array.from(set).sort();
-  }, [appointments]);
+  }, [scopedAppointments]);
 
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((appointment) => {
-      if (selectedEmployees.size > 0) {
-        const employeeId = String(appointment.employee?._id || appointment.employee || "");
-        if (!selectedEmployees.has(employeeId)) return false;
+    return scopedAppointments.filter((appointment) => {
+      if (calendarScope === "team" && selectedEmployees.size > 0) {
+        const employeeIds = appointmentEmployeeIds(appointment);
+        const selectedMemberIds = teamMembers
+          .filter((member) => selectedEmployees.has(member.id))
+          .flatMap((member) => member.ids);
+        const matchesEmployee = selectedMemberIds.some((id) => employeeIds.has(id));
+        if (!matchesEmployee) return false;
       }
       if (selectedStatuses.size > 0 && !selectedStatuses.has(appointment.status)) {
         return false;
@@ -343,7 +477,14 @@ export default function CalendarPage() {
       }
       return true;
     });
-  }, [appointments, selectedEmployees, selectedStatuses, selectedServices]);
+  }, [
+    calendarScope,
+    scopedAppointments,
+    selectedEmployees,
+    selectedStatuses,
+    selectedServices,
+    teamMembers,
+  ]);
 
   const dayBuckets = useMemo(() => {
     return days.map((day) => {
@@ -372,7 +513,20 @@ export default function CalendarPage() {
     return todayBucket || dayBuckets[0] || null;
   }, [dayBuckets, selectedDate]);
 
-  const activeFilterCount = selectedStatuses.size + selectedServices.size;
+  const activeFilterCount =
+    selectedStatuses.size +
+    selectedServices.size +
+    (calendarScope === "team" ? selectedEmployees.size : 0);
+
+  const changeCalendarScope = (scope: "team" | "my") => {
+    setCalendarScope(scope);
+    setSelectedDate(null);
+    setSelectedStatuses(new Set());
+    setSelectedServices(new Set());
+    if (scope === "my") {
+      setSelectedEmployees(new Set());
+    }
+  };
 
   const navigate = (delta: number) => {
     setAnchorDate((current) => {
@@ -429,14 +583,17 @@ export default function CalendarPage() {
   };
 
   const clearFilters = () => {
+    setSelectedEmployees(new Set());
     setSelectedStatuses(new Set());
     setSelectedServices(new Set());
   };
 
   const employeeColor = (appointment: any) => {
     if (appointment.color) return appointment.color;
-    const employeeId = String(appointment.employee?._id || "");
-    return memberColorMap.get(employeeId) || TEAM_COLOR_POOL[0];
+    const match = Array.from(appointmentEmployeeIds(appointment)).find((id) =>
+      memberColorMap.has(id),
+    );
+    return (match && memberColorMap.get(match)) || TEAM_COLOR_POOL[0];
   };
 
   const viewFullDay = () => {
@@ -559,7 +716,8 @@ export default function CalendarPage() {
                           <button
                             onClick={(event) => {
                               event.stopPropagation();
-                              setShowCreateDialog(true);
+                              setSelectedDate(bucket.day);
+                              openScopedAppointmentDialog(bucket.day);
                             }}
                             className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded-md bg-[#1e2d40] text-gray-400 group-hover:flex hover:text-blue-400"
                             aria-label="Add appointment"
@@ -596,11 +754,8 @@ export default function CalendarPage() {
 
                         {slotAppointments.map((appointment: any) => {
                           const color = employeeColor(appointment);
-                          const guestName =
-                            appointment.customer?.name ||
-                            appointment.client?.name ||
-                            appointment.title ||
-                            "Customer";
+                          const appointmentName = getAppointmentName(appointment);
+                          const appointmentMeta = getAppointmentMeta(appointment);
                           return (
                             <div
                               key={appointment._id}
@@ -618,12 +773,10 @@ export default function CalendarPage() {
                                 {formatRange(appointment.startTime, appointment.endTime)}
                               </p>
                               <p className="flex items-center gap-1 truncate text-[10px] text-gray-100">
-                                {guestName}
+                                {appointmentName}
                                 <User className="h-2.5 w-2.5 text-gray-500" />
                               </p>
-                              <p className="truncate text-[9px] text-gray-400">
-                                {appointment.service || "Service"}
-                              </p>
+                              <p className="truncate text-[9px] text-gray-400">{appointmentMeta}</p>
                             </div>
                           );
                         })}
@@ -638,18 +791,34 @@ export default function CalendarPage() {
 
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-3 border-t border-[#1e2d40] px-4 py-2">
-          {teamMembers.map((member) => (
-            <div key={member.id} className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ background: member.color }} />
-              <span className="text-[10px] text-gray-400">{member.name}</span>
+          {calendarScope === "team" ? (
+            teamMembers.map((member) => (
+              <div key={member.id} className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full" style={{ background: member.color }} />
+                <span className="text-[10px] text-gray-400">{member.name}</span>
+              </div>
+            ))
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-blue-500" />
+              <span className="text-[10px] text-gray-400">My appointments</span>
             </div>
-          ))}
+          )}
           <button
-            onClick={() => router.push("/employees")}
+            onClick={() => (calendarScope === "team" ? router.push("/employees") : openPersonalAppointmentDialog())}
             className="ml-auto flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-300"
           >
-            <Settings2 className="h-3 w-3" />
-            Manage calendars
+            {calendarScope === "team" ? (
+              <>
+                <Settings2 className="h-3 w-3" />
+                Manage calendars
+              </>
+            ) : (
+              <>
+                <Plus className="h-3 w-3" />
+                Add personal appointment
+              </>
+            )}
           </button>
         </div>
       </CardContent>
@@ -718,18 +887,14 @@ export default function CalendarPage() {
                   <div className="space-y-0.5">
                     {visible.map((appointment: any) => {
                       const color = employeeColor(appointment);
-                      const guestName =
-                        appointment.customer?.name ||
-                        appointment.client?.name ||
-                        appointment.title ||
-                        "Customer";
+                      const appointmentName = getAppointmentName(appointment);
                       return (
                         <div
                           key={appointment._id}
                           className="truncate rounded px-1 py-0.5 text-[9px]"
                           style={{ backgroundColor: `${color}25`, color }}
                         >
-                          {(appointment.startTime || "").slice(0, 5)} {guestName}
+                          {(appointment.startTime || "").slice(0, 5)} {appointmentName}
                         </div>
                       );
                     })}
@@ -805,11 +970,8 @@ export default function CalendarPage() {
                     .sort((a: any, b: any) => (a.startTime || "").localeCompare(b.startTime || ""))
                     .map((appointment: any) => {
                       const color = employeeColor(appointment);
-                      const guestName =
-                        appointment.customer?.name ||
-                        appointment.client?.name ||
-                        appointment.title ||
-                        "Customer";
+                      const appointmentName = getAppointmentName(appointment);
+                      const appointmentMeta = getAppointmentMeta(appointment);
                       const statusInfo = STATUS_LABELS[appointment.status] || {
                         label: appointment.status || "Upcoming",
                         color: "text-gray-400",
@@ -827,10 +989,8 @@ export default function CalendarPage() {
                             {formatRange(appointment.startTime, appointment.endTime)}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm text-gray-100">{guestName}</p>
-                            <p className="truncate text-xs text-gray-500">
-                              {appointment.service || "Service"}
-                            </p>
+                            <p className="truncate text-sm text-gray-100">{appointmentName}</p>
+                            <p className="truncate text-xs text-gray-500">{appointmentMeta}</p>
                           </div>
                           <Avatar className="h-6 w-6 shrink-0">
                             {employeeImg ? (
@@ -877,6 +1037,10 @@ export default function CalendarPage() {
     </Card>
   );
 
+  const updateCalendarSetting = (key: keyof typeof calendarSettings, value: string | boolean) => {
+    setCalendarSettings((current) => ({ ...current, [key]: value }));
+  };
+
   return (
     <div>
       <Header
@@ -887,14 +1051,14 @@ export default function CalendarPage() {
             <Button
               size="sm"
               className="h-8 rounded-l-lg rounded-r-none bg-blue-600 text-xs hover:bg-blue-700"
-              onClick={() => setShowCreateDialog(true)}
+              onClick={() => openScopedAppointmentDialog()}
             >
               <Plus className="mr-1 h-3.5 w-3.5" />
               Create Appointment
             </Button>
             <button
               className="rounded-md p-1 text-white hover:bg-blue-700"
-              onClick={() => setShowCreateDialog(true)}
+              onClick={() => openScopedAppointmentDialog()}
               aria-label="More"
             >
               <ChevronDown className="h-3.5 w-3.5" />
@@ -1027,82 +1191,130 @@ export default function CalendarPage() {
         {/* Main grid */}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
           <div className="space-y-4 xl:col-span-3">
-            {/* Team Calendars */}
-            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#1e2d40] bg-[#0d1a2d] p-3">
-              <span className="text-xs text-gray-400">Team Calendars</span>
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#1e2d40] text-[9px] text-gray-500">
-                ?
-              </span>
-              {teamMembers.map((member) => {
-                const isActive = selectedEmployees.size === 0 || selectedEmployees.has(member.id);
-                return (
+            {/* Calendar scope */}
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#1e2d40] bg-[#0d1a2d] p-2">
+              <div className="flex rounded-xl bg-[#071321] p-1">
+                {[
+                  { value: "my" as const, label: "My Calendar" },
+                  { value: "team" as const, label: "Team Calendars" },
+                ].map((option) => (
                   <button
-                    key={member.id}
-                    onClick={() => toggleMember(member.id)}
-                    className={`flex items-center gap-2 rounded-full border px-2 py-1 transition-colors ${
-                      isActive
-                        ? "border-[#2a3547] bg-[#1e2d40]"
-                        : "border-[#1e2d40] bg-transparent opacity-50"
+                    key={option.value}
+                    type="button"
+                    onClick={() => changeCalendarScope(option.value)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                      calendarScope === option.value
+                        ? "bg-blue-600 text-white shadow-[0_0_14px_rgba(37,99,235,0.35)]"
+                        : "text-gray-400 hover:text-gray-100"
                     }`}
-                    style={isActive ? { borderColor: `${member.color}55` } : undefined}
                   >
-                    <Avatar className="h-5 w-5">
-                      {member.imageUrl ? (
-                        <AvatarImage src={member.imageUrl} alt={member.name} />
-                      ) : (
-                        <AvatarFallback
-                          className="text-[9px]"
-                          style={{
-                            backgroundColor: `${member.color}33`,
-                            color: member.color,
-                          }}
-                        >
-                          {getInitials(member.name)}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <span className="text-xs text-gray-200">{member.name}</span>
+                    {option.label}
                   </button>
-                );
-              })}
-              <button
-                onClick={() => router.push("/employees")}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1e2d40] text-gray-400 hover:text-white"
-                aria-label="Add calendar"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
+                ))}
+              </div>
+
+              {calendarScope === "team" ? (
+                <>
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1e2d40] text-[10px] text-gray-500">
+                    {teamMembers.length}
+                  </span>
+                  {teamMembers.map((member) => {
+                    const isActive =
+                      selectedEmployees.size === 0 || selectedEmployees.has(member.id);
+                    return (
+                      <button
+                        key={member.id}
+                        onClick={() => toggleMember(member.id)}
+                        className={`flex items-center gap-2 rounded-full border px-2 py-1 transition-colors ${
+                          isActive
+                            ? "border-[#2a3547] bg-[#1e2d40]"
+                            : "border-[#1e2d40] bg-transparent opacity-50"
+                        }`}
+                        style={isActive ? { borderColor: `${member.color}55` } : undefined}
+                      >
+                        <Avatar className="h-5 w-5">
+                          {member.imageUrl ? (
+                            <AvatarImage src={member.imageUrl} alt={member.name} />
+                          ) : (
+                            <AvatarFallback
+                              className="text-[9px]"
+                              style={{
+                                backgroundColor: `${member.color}33`,
+                                color: member.color,
+                              }}
+                            >
+                              {getInitials(member.name)}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <span className="text-xs text-gray-200">{member.name}</span>
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => openTeamAppointmentDialog(selectedDate)}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1e2d40] text-gray-400 hover:text-white"
+                    aria-label="Create team appointment"
+                    title="Create team appointment"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-600/10 px-3 py-1.5">
+                    <User className="h-3.5 w-3.5 text-blue-300" />
+                    <span className="text-xs font-medium text-gray-100">Personal schedule</span>
+                    <span className="rounded-full bg-[#1e2d40] px-1.5 py-0.5 text-[10px] text-gray-400">
+                      {scopedAppointments.length}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => openPersonalAppointmentDialog(selectedDate)}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600/20 text-blue-300 hover:bg-blue-600 hover:text-white"
+                    aria-label="Create personal appointment"
+                    title="Create personal appointment"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Kora Insights */}
             {showInsights ? (
-              <div className="flex flex-col gap-4 rounded-xl border border-[#173050] bg-[radial-gradient(circle_at_4%_50%,rgba(37,99,235,0.24),transparent_13%),linear-gradient(135deg,#071321,#0b1a2f)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] lg:flex-row lg:items-center">
-                <div className="flex h-[104px] w-[104px] shrink-0 items-center justify-center">
+              <div className="grid gap-4 rounded-xl border border-[#173050] bg-[radial-gradient(circle_at_5%_50%,rgba(37,99,235,0.22),transparent_14%),linear-gradient(135deg,#071321,#0b1a2f)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:grid-cols-[88px_minmax(0,1fr)] xl:grid-cols-[104px_minmax(0,1fr)]">
+                <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center self-center xl:h-[104px] xl:w-[104px]">
                   <Image
                     src="/kora.png"
                     alt="Kora"
                     width={104}
                     height={104}
                     unoptimized
-                    className="kora-image h-[104px] w-[104px] object-contain drop-shadow-[0_0_24px_rgba(59,130,246,0.45)]"
+                    className="kora-image h-[88px] w-[88px] object-contain drop-shadow-[0_0_24px_rgba(59,130,246,0.45)] xl:h-[104px] xl:w-[104px]"
                   />
                 </div>
-                <div className="hidden">
-                  <Sparkles className="h-3 w-3 text-blue-400" />
-                  <span className="text-lg font-semibold text-white">Kora Insights</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="mb-3 text-lg font-semibold leading-none text-white">Kora Insights</p>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="min-w-0 space-y-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-lg font-semibold leading-none text-white">Kora Insights</p>
+                    <button
+                      onClick={() => setShowInsightsDialog(true)}
+                      className="flex w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/70 px-4 py-2.5 text-sm text-gray-200 transition-colors hover:bg-[#1e2d40] sm:w-auto"
+                    >
+                      <span>View all insights</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                   {(insights.length > 0 ? insights : FALLBACK_INSIGHTS)
                     .slice(0, 3)
                     .map((insight: any, index: number) => (
                       <div
                         key={`${insight.title}-${index}`}
-                        className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+                        className="flex min-h-[62px] min-w-0 items-center gap-3 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
                       >
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600/20 text-base">{INSIGHT_ICONS[index % INSIGHT_ICONS.length]}</span>
-                        <div className="leading-tight">
+                        <div className="min-w-0 leading-tight">
                           <p className="truncate text-xs font-medium text-gray-200">{insight.title}</p>
                           <p className="mt-1 truncate text-[11px] text-gray-500">{insight.message}</p>
                         </div>
@@ -1112,7 +1324,7 @@ export default function CalendarPage() {
                 </div>
                 <button
                   onClick={() => setShowInsightsDialog(true)}
-                  className="flex shrink-0 items-center gap-2 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/70 px-4 py-2.5 text-[0px] text-gray-200 transition-colors hover:bg-[#1e2d40] lg:self-end"
+                  className="hidden"
                 >
                   <span className="text-sm">View all insights</span>
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -1211,8 +1423,8 @@ export default function CalendarPage() {
                         .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""))
                         .slice(0, 6)
                         .map((appointment) => {
-                          const guestName =
-                            appointment.customer?.name || appointment.client?.name || "Customer";
+                          const appointmentName = getAppointmentName(appointment);
+                          const appointmentMeta = getAppointmentMeta(appointment);
                           const statusInfo = STATUS_LABELS[appointment.status] || {
                             label: appointment.status || "Upcoming",
                             color: "text-gray-400",
@@ -1229,10 +1441,8 @@ export default function CalendarPage() {
                                 {(appointment.startTime || "").slice(0, 5)}
                               </span>
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs text-gray-100">{guestName}</p>
-                                <p className="truncate text-[10px] text-gray-500">
-                                  {appointment.service || "Service"}
-                                </p>
+                                <p className="truncate text-xs text-gray-100">{appointmentName}</p>
+                                <p className="truncate text-[10px] text-gray-500">{appointmentMeta}</p>
                               </div>
                               <Avatar className="h-5 w-5 shrink-0">
                                 {employeeImg ? (
@@ -1273,7 +1483,7 @@ export default function CalendarPage() {
                     {
                       label: "Add Appointment",
                       icon: Plus,
-                      action: () => setShowCreateDialog(true),
+                      action: openScopedAppointmentDialog,
                     },
                     {
                       label: "Add Block",
@@ -1288,12 +1498,12 @@ export default function CalendarPage() {
                     {
                       label: "Appointment Types",
                       icon: Settings2,
-                      action: () => router.push("/services"),
+                      action: () => setShowAppointmentTypesDialog(true),
                     },
                     {
                       label: "Calendar Settings",
                       icon: Settings,
-                      action: () => router.push("/settings"),
+                      action: () => setShowCalendarSettingsDialog(true),
                     },
                   ].map((action) => (
                     <button
@@ -1344,11 +1554,10 @@ export default function CalendarPage() {
                       variant="outline"
                       size="sm"
                       className="h-8 w-full text-xs"
-                      onClick={() => syncMutation.mutate()}
-                      disabled={syncMutation.isPending}
+                      onClick={() => setShowCalendarSettingsDialog(true)}
                     >
                       <RefreshCw className="mr-1 h-3 w-3" />
-                      {syncMutation.isPending ? "Syncing..." : "Sync Settings"}
+                      Sync Settings
                     </Button>
                   </>
                 ) : null}
@@ -1358,7 +1567,254 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <CreateAppointmentDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} showService />
+      <Dialog open={showAppointmentTypesDialog} onOpenChange={setShowAppointmentTypesDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600/15 text-blue-400">
+                <Settings2 className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle>Appointment Types</DialogTitle>
+                <p className="mt-1 text-xs text-gray-500">
+                  Define service, customer, and team calendar types for this business.
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-[minmax(0,1.2fr)_90px_90px_100px] gap-2 px-2 text-[10px] font-medium uppercase tracking-wide text-gray-500">
+              <span>Type</span>
+              <span>Duration</span>
+              <span>Visible To</span>
+              <span>Color</span>
+            </div>
+            <div className="space-y-2">
+              {appointmentTypes.map((type) => (
+                <div key={type.name} className="grid grid-cols-[minmax(0,1.2fr)_90px_90px_100px] items-center gap-2 rounded-lg border border-[#1e2d40] bg-[#0d1a2d] p-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-gray-100">{type.name}</p>
+                    <p className="truncate text-[11px] text-gray-500">Used for booking forms, filters, and color rules.</p>
+                  </div>
+                  <span className="text-xs text-gray-300">{type.duration}</span>
+                  <span className="text-xs text-gray-300">{type.visibility}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="h-5 w-5 rounded-full border border-white/20" style={{ backgroundColor: type.color }} />
+                    <span className="text-[10px] text-gray-500">{type.color}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-3 rounded-lg border border-dashed border-[#24405f] bg-[#071321] p-3 md:grid-cols-[minmax(0,1fr)_110px_110px_84px]">
+              <Input value={newAppointmentType} onChange={(event) => setNewAppointmentType(event.target.value)} placeholder="New type name" />
+              <select value={newAppointmentTypeDuration} onChange={(event) => setNewAppointmentTypeDuration(event.target.value)} className="h-10 rounded-lg border border-[#2a3547] bg-[#0d1526] px-3 text-xs text-gray-200 outline-none focus:ring-2 focus:ring-blue-500">
+                <option>30 min</option>
+                <option>45 min</option>
+                <option>60 min</option>
+                <option>90 min</option>
+                <option>All day</option>
+              </select>
+              <select value={newAppointmentTypeVisibility} onChange={(event) => setNewAppointmentTypeVisibility(event.target.value)} className="h-10 rounded-lg border border-[#2a3547] bg-[#0d1526] px-3 text-xs text-gray-200 outline-none focus:ring-2 focus:ring-blue-500">
+                <option>Customer</option>
+                <option>Team</option>
+                <option>Owner</option>
+              </select>
+              <Button
+                onClick={() => {
+                  if (!newAppointmentType.trim()) {
+                    toast.error("Type name is required");
+                    return;
+                  }
+                  setAppointmentTypes((current) => [
+                    ...current,
+                    {
+                      name: newAppointmentType.trim(),
+                      duration: newAppointmentTypeDuration,
+                      visibility: newAppointmentTypeVisibility,
+                      color: newAppointmentTypeColor,
+                    },
+                  ]);
+                  setNewAppointmentType("");
+                  toast.success("Appointment type added");
+                }}
+                className="h-10 text-xs"
+              >
+                Add
+              </Button>
+            </div>
+            <div className="flex items-center justify-between border-t border-[#1e2d40] pt-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">New type color</span>
+                <input type="color" value={newAppointmentTypeColor} onChange={(event) => setNewAppointmentTypeColor(event.target.value)} className="h-8 w-12 rounded border border-[#2a3547] bg-[#0d1526]" />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setShowAppointmentTypesDialog(false)}>Cancel</Button>
+                <Button
+                  onClick={() => {
+                    window.localStorage.setItem("business-owner-calendar-appointment-types", JSON.stringify(appointmentTypes));
+                    toast.success("Appointment type settings saved");
+                    setShowAppointmentTypesDialog(false);
+                  }}
+                >
+                  Save Types
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCalendarSettingsDialog} onOpenChange={setShowCalendarSettingsDialog}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600/15 text-blue-400">
+                <Settings className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle>Calendar Settings</DialogTitle>
+                <p className="mt-1 text-xs text-gray-500">
+                  Configure team availability, customer booking, Google sync, and appointment defaults.
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="space-y-3 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-100">
+                <CalendarDays className="h-4 w-4 text-blue-400" />
+                Calendar Display
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="space-y-1.5">
+                  <span className="text-xs text-gray-400">Default view</span>
+                  <select value={calendarSettings.defaultView} onChange={(event) => updateCalendarSetting("defaultView", event.target.value)} className="h-10 w-full rounded-lg border border-[#2a3547] bg-[#0d1526] px-3 text-sm text-gray-200 outline-none focus:ring-2 focus:ring-blue-500">
+                    {VIEWS.map((option) => <option key={option}>{option}</option>)}
+                  </select>
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs text-gray-400">Event density</span>
+                  <select value={calendarSettings.eventDensity} onChange={(event) => updateCalendarSetting("eventDensity", event.target.value)} className="h-10 w-full rounded-lg border border-[#2a3547] bg-[#0d1526] px-3 text-sm text-gray-200 outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>Compact</option><option>Comfortable</option><option>Detailed</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs text-gray-400">Week starts on</span>
+                  <select value={calendarSettings.weekStartsOn} onChange={(event) => updateCalendarSetting("weekStartsOn", event.target.value)} className="h-10 w-full rounded-lg border border-[#2a3547] bg-[#0d1526] px-3 text-sm text-gray-200 outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>Monday</option><option>Sunday</option><option>Saturday</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs text-gray-400">Timezone</span>
+                  <select value={calendarSettings.timeZone} onChange={(event) => updateCalendarSetting("timeZone", event.target.value)} className="h-10 w-full rounded-lg border border-[#2a3547] bg-[#0d1526] px-3 text-sm text-gray-200 outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>Asia/Dhaka</option><option>America/New_York</option><option>Europe/London</option><option>UTC</option>
+                  </select>
+                </label>
+              </div>
+              <label className="flex items-center justify-between rounded-lg border border-[#203651] bg-[#071321] px-3 py-2">
+                <span className="text-xs text-gray-300">Show weekends</span>
+                <input type="checkbox" checked={calendarSettings.showWeekends} onChange={(event) => updateCalendarSetting("showWeekends", event.target.checked)} className="h-4 w-4 rounded border-[#2a3547] bg-[#0d1526]" />
+              </label>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-100">
+                <Bell className="h-4 w-4 text-blue-400" />
+                Scheduling Defaults
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="space-y-1.5"><span className="text-xs text-gray-400">Working start</span><Input type="time" value={calendarSettings.workingStart} onChange={(event) => updateCalendarSetting("workingStart", event.target.value)} /></label>
+                <label className="space-y-1.5"><span className="text-xs text-gray-400">Working end</span><Input type="time" value={calendarSettings.workingEnd} onChange={(event) => updateCalendarSetting("workingEnd", event.target.value)} /></label>
+                <label className="space-y-1.5">
+                  <span className="text-xs text-gray-400">Default duration</span>
+                  <select value={calendarSettings.defaultDuration} onChange={(event) => updateCalendarSetting("defaultDuration", event.target.value)} className="h-10 w-full rounded-lg border border-[#2a3547] bg-[#0d1526] px-3 text-sm text-gray-200 outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option><option value="90">90 min</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5">
+                  <span className="text-xs text-gray-400">Default reminder</span>
+                  <select value={calendarSettings.reminder} onChange={(event) => updateCalendarSetting("reminder", event.target.value)} className="h-10 w-full rounded-lg border border-[#2a3547] bg-[#0d1526] px-3 text-sm text-gray-200 outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="5">5 min before</option><option value="15">15 min before</option><option value="30">30 min before</option><option value="60">1 hour before</option>
+                  </select>
+                </label>
+              </div>
+              <label className="flex items-center justify-between rounded-lg border border-[#203651] bg-[#071321] px-3 py-2">
+                <span className="text-xs text-gray-300">Require customer for team appointments</span>
+                <input type="checkbox" checked={calendarSettings.requireCustomer} onChange={(event) => updateCalendarSetting("requireCustomer", event.target.checked)} className="h-4 w-4 rounded border-[#2a3547] bg-[#0d1526]" />
+              </label>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-100">
+                <Globe2 className="h-4 w-4 text-blue-400" />
+                Google Calendar Sync
+              </div>
+              <label className="flex items-center justify-between rounded-lg border border-[#203651] bg-[#071321] px-3 py-2">
+                <span className="text-xs text-gray-300">Two-way Google sync</span>
+                <input type="checkbox" checked={calendarSettings.syncGoogle} onChange={(event) => updateCalendarSetting("syncGoogle", event.target.checked)} className="h-4 w-4 rounded border-[#2a3547] bg-[#0d1526]" />
+              </label>
+              <label className="flex items-center justify-between rounded-lg border border-[#203651] bg-[#071321] px-3 py-2">
+                <span className="text-xs text-gray-300">Show declined or cancelled appointments</span>
+                <input type="checkbox" checked={calendarSettings.showDeclined} onChange={(event) => updateCalendarSetting("showDeclined", event.target.checked)} className="h-4 w-4 rounded border-[#2a3547] bg-[#0d1526]" />
+              </label>
+              <div className="flex items-center gap-2 rounded-lg border border-[#203651] bg-[#071321] px-3 py-2 text-xs text-gray-400">
+                <Palette className="h-3.5 w-3.5 text-blue-400" />
+                Match Google event colors with appointment type colors.
+              </div>
+              <Button variant="outline" size="sm" className="h-9 w-full text-xs" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending}>
+                <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                {syncMutation.isPending ? "Syncing..." : "Sync Google Calendar Now"}
+              </Button>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-100">
+                <ShieldCheck className="h-4 w-4 text-blue-400" />
+                Access and Booking
+              </div>
+              <label className="flex items-center justify-between rounded-lg border border-[#203651] bg-[#071321] px-3 py-2">
+                <span className="text-xs text-gray-300">Public booking link enabled</span>
+                <input type="checkbox" checked={calendarSettings.publicBooking} onChange={(event) => updateCalendarSetting("publicBooking", event.target.checked)} className="h-4 w-4 rounded border-[#2a3547] bg-[#0d1526]" />
+              </label>
+              <label className="flex items-center justify-between rounded-lg border border-[#203651] bg-[#071321] px-3 py-2">
+                <span className="text-xs text-gray-300">Employees can edit their assigned appointments</span>
+                <input type="checkbox" checked={calendarSettings.employeeCanEdit} onChange={(event) => updateCalendarSetting("employeeCanEdit", event.target.checked)} className="h-4 w-4 rounded border-[#2a3547] bg-[#0d1526]" />
+              </label>
+              <div className="flex items-center gap-2 rounded-lg border border-[#203651] bg-[#071321] px-3 py-2 text-xs text-gray-400">
+                <Eye className="h-3.5 w-3.5 text-blue-400" />
+                Owner can manage team calendars, personal events, blocks, and breaks.
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between border-t border-[#1e2d40] pt-4">
+            <p className="text-[11px] text-gray-500">These settings define calendar behavior for the Business Owner dashboard.</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowCalendarSettingsDialog(false)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  window.localStorage.setItem("business-owner-calendar-settings", JSON.stringify(calendarSettings));
+                  toast.success("Calendar settings saved");
+                  setShowCalendarSettingsDialog(false);
+                }}
+              >
+                Save Settings
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <CreateAppointmentDialog
+        key={`${createDialogMode}-${appointmentDefaultDate?.toISOString() || "today"}`}
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        mode={createDialogMode}
+        defaultDate={appointmentDefaultDate}
+        showService
+      />
 
       <AddBlockDialog
         open={blockDialogType !== null}

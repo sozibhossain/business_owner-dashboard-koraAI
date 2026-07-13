@@ -13,6 +13,7 @@ import {
   userApi,
 } from "@/lib/api";
 import { Header } from "@/components/layout/header";
+import { KoraOrb } from "@/components/kora-orb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -21,6 +22,7 @@ import { toast } from "sonner";
 import { useViewportPageSize } from "@/hooks/use-viewport-page-size";
 import {
   Calendar,
+  Clock,
   Users,
   DollarSign,
   Send,
@@ -41,6 +43,7 @@ import {
   SquareCheckBig,
   Mail,
   Gift,
+  MoreVertical,
 } from "lucide-react";
 
 const today = new Date().toISOString().split("T")[0];
@@ -81,7 +84,7 @@ const getGreeting = () => {
 
 const koraSuggestionChips = [
   { icon: CalendarPlus2, label: "Show me today's appointments" },
-  { icon: ArrowRight, label: "Move an appointment" },
+  { icon: Clock, label: "Move an appointment" },
   { icon: BarChart3, label: "Show my weekly performance" },
 ];
 
@@ -231,9 +234,7 @@ export default function BusinessOwnerDashboard() {
   );
 
   const dashboardName =
-    profileData?.name?.trim() ||
-    profileData?.businessName?.trim() ||
-    "there";
+    profileData?.name?.trim() || profileData?.businessName?.trim() || "there";
   const websiteUrl = profileData?.website?.trim();
 
   const quickActions = [
@@ -582,117 +583,124 @@ export default function BusinessOwnerDashboard() {
           </Card>
 
           {/* Kora Assistant */}
-          <Card className="flex min-h-0 flex-col overflow-hidden border-blue-600/20 bg-gradient-to-br from-[#071321] to-[#081a2c]">
-            <CardHeader className="pb-3">
+          <Card className="relative flex min-h-0 flex-col overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_76%_34%,rgba(0,127,255,0.2),transparent_26%),linear-gradient(135deg,#071321,#061326_58%,#081a2c)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_0_34px_rgba(2,132,199,0.08)]">
+            <CardHeader className="relative z-10 pb-2">
               <div className="flex min-w-0 items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600/15 text-[#79C1EC] ring-1 ring-blue-400/20">
-                    <Sparkles className="h-5 w-5 drop-shadow-[0_0_10px_rgba(121,193,236,0.6)]" />
+                  <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#071321] shadow-[0_0_18px_rgba(0,183,255,0.35)] ring-1 ring-cyan-400/25">
+                    <Image
+                      src="/kora-logo.png"
+                      alt="KoraAI"
+                      width={36}
+                      height={36}
+                      className="h-full w-full object-cover"
+                      priority
+                    />
                   </div>
-                  <div className="min-w-0">
-                    <CardTitle className="truncate text-lg font-semibold text-white">
-                      Kora Assistant
-                    </CardTitle>
-                    <p className="mt-0.5 text-xs text-emerald-400">Online now</p>
-                  </div>
+                  <CardTitle className="truncate text-lg font-semibold text-white">
+                    Kora Assistant
+                  </CardTitle>
                 </div>
-                <div className="hidden items-center gap-2 rounded-full border border-[#1e2d40] bg-[#0d1a2d]/80 py-1 pl-1 pr-3 sm:flex">
-                  <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-blue-400/30">
+                <button
+                  type="button"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-[#0d1a2d] hover:text-gray-200"
+                  aria-label="Assistant menu"
+                >
+                  <MoreVertical className="h-5 w-5" />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid min-h-0 w-full grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(11rem,0.72fr)]">
+                <div className="flex min-h-0 flex-col overflow-hidden">
+                  {showChips ? (
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                      <p className="mb-4 max-w-full rounded-xl border border-[#1e2d40] bg-[#0d1a2d]/85 px-4 py-3 text-sm text-gray-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                        Hi {dashboardName}! How can I help you today?
+                      </p>
+                      <p className="mb-3 text-sm font-semibold text-gray-100">
+                        Here are some suggestions:
+                      </p>
+                      <div className="scrollbar-none min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                        {koraSuggestionChips.map((chip) => (
+                          <button
+                            key={chip.label}
+                            onClick={() => sendKoraMessage(chip.label)}
+                            className="flex min-h-14 w-full min-w-0 items-center gap-4 rounded-xl border border-[#1e2d40] bg-[#0d1a2d]/90 px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all hover:border-[#79C1EC]/45 hover:bg-[#122238]"
+                          >
+                            <chip.icon className="h-5 w-5 shrink-0 text-gray-200" />
+                            <span className="min-w-0 truncate text-sm font-medium text-gray-100">
+                              {chip.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="scrollbar-none mb-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                      {koraMessages
+                        .slice(-assistantMessagePageSize)
+                        .map((msg, i) => (
+                          <div
+                            key={i}
+                            className={`flex ${msg.role === "user" ? "justify-end" : "items-start gap-2"}`}
+                          >
+                            {msg.role === "assistant" && (
+                              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600/20">
+                                <Image
+                                  src="/kora.png"
+                                  alt=""
+                                  width={24}
+                                  height={24}
+                                  unoptimized
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                            )}
+                            <div
+                              className={`max-w-[85%] rounded-xl px-3 py-2 ${
+                                msg.role === "user"
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-[#1e2d40] text-gray-200"
+                              }`}
+                            >
+                              <p className="text-xs">{msg.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="relative hidden min-h-0 items-center justify-center lg:flex">
+                  <div className="flex justify-center sm:w-[180px]">
                     <Image
                       src="/kora.png"
                       alt="Kora"
-                      fill
-                      sizes="36px"
+                      width={162}
+                      height={162}
                       unoptimized
                       priority
-                      className="object-cover"
+                      className="kora-image h-[162px] w-[162px] object-contain"
                     />
                   </div>
-                  <span className="text-xs font-medium text-gray-300">Ready</span>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="flex min-h-0 flex-1 overflow-hidden pt-0">
-              <div className="flex min-h-0 w-full flex-col overflow-hidden">
-                {showChips ? (
-                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                    <p className="mb-3 max-w-full rounded-xl border border-[#1e2d40] bg-[#0d1a2d] px-4 py-2.5 text-sm text-gray-300">
-                      Hi {dashboardName}! How can I help you today?
-                    </p>
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <p className="text-sm font-medium text-gray-100">
-                        Suggestions
-                      </p>
-                      <span className="hidden text-xs text-gray-500 sm:inline">
-                        Pick one to start
-                      </span>
-                    </div>
-                    <div className="scrollbar-none grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-y-auto pr-1 2xl:grid-cols-3">
-                      {koraSuggestionChips.map((chip) => (
-                        <button
-                          key={chip.label}
-                          onClick={() => sendKoraMessage(chip.label)}
-                          className="flex min-h-11 min-w-0 items-center gap-3 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] px-3 py-2 text-left transition-all hover:border-blue-600/30 hover:bg-[#122238]"
-                        >
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#101f35]">
-                            <chip.icon className="h-4 w-4 text-gray-200" />
-                          </div>
-                          <span className="min-w-0 truncate text-sm text-gray-100">
-                            {chip.label}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="scrollbar-none mb-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                    {koraMessages.slice(-assistantMessagePageSize).map((msg, i) => (
-                      <div
-                        key={i}
-                        className={`flex ${msg.role === "user" ? "justify-end" : "items-start gap-2"}`}
-                      >
-                        {msg.role === "assistant" && (
-                          <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600/20">
-                            <Image
-                              src="/kora.png"
-                              alt=""
-                              width={24}
-                              height={24}
-                              unoptimized
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        )}
-                        <div
-                          className={`max-w-[85%] rounded-xl px-3 py-2 ${
-                            msg.role === "user"
-                              ? "bg-blue-600 text-white"
-                              : "bg-[#1e2d40] text-gray-200"
-                          }`}
-                        >
-                          <p className="text-xs">{msg.content}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="mt-auto flex shrink-0 gap-2 border-t border-[#1e2d40]/70 pt-3">
-                  <input
-                    value={koraInput}
-                    onChange={(e) => setKoraInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && sendKoraMessage()}
-                    placeholder="Ask Kora anything..."
-                    className="min-h-11 flex-1 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] px-4 text-sm text-gray-200 placeholder:text-gray-500 transition-colors focus:border-blue-500 focus:outline-none"
-                  />
-                  <Button
-                    size="icon"
-                    className="h-11 w-11 rounded-full bg-blue-600 hover:bg-blue-700"
-                    onClick={() => sendKoraMessage()}
-                  >
-                    <Send className="h-5 w-5" />
-                  </Button>
-                </div>
+              <div className="mt-auto flex shrink-0 gap-2 pt-4">
+                <input
+                  value={koraInput}
+                  onChange={(e) => setKoraInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendKoraMessage()}
+                  placeholder="Ask Kora anything..."
+                  className="min-h-12 flex-1 rounded-xl border border-[#1e2d40] bg-[#0d1a2d]/90 px-4 text-sm text-gray-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] placeholder:text-gray-500 transition-colors focus:border-blue-500 focus:outline-none"
+                />
+                <Button
+                  size="icon"
+                  className="h-12 w-12 shrink-0 rounded-full bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.45)] hover:bg-blue-700"
+                  onClick={() => sendKoraMessage()}
+                >
+                  <Send className="h-5 w-5" />
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -738,7 +746,7 @@ export default function BusinessOwnerDashboard() {
         </Card>
 
         {/* ── Kora Suggestions ── */}
-        <div className="dashboard-secondary">
+        {/* <div className="dashboard-secondary">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-blue-400" />
@@ -790,7 +798,7 @@ export default function BusinessOwnerDashboard() {
               onPageChange={setSuggestionsPage}
             />
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

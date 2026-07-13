@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -74,6 +75,14 @@ const toDateValue = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const buildLocalDateTime = (date: string, time: string) => {
+  const [year, month, day] = date.split("-").map(Number);
+  const [hours, minutes] = time.split(":").map(Number);
+  const value = new Date(year, (month || 1) - 1, day || 1);
+  value.setHours(hours || 0, minutes || 0, 0, 0);
+  return value;
+};
+
 const toTimeValue = (date: Date) => {
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
@@ -129,27 +138,40 @@ const formatDateOnlyLabel = (value: string) => {
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  mode?: "personal" | "team";
   showService?: boolean;
+  defaultDate?: Date | null;
   onCreated?: () => void;
 };
 
 export function CreateAppointmentDialog({
   open,
   onOpenChange,
+  mode = "team",
   showService = true,
+  defaultDate = null,
   onCreated,
 }: Props) {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const isTeamMode = mode === "team";
+  const showTeamService = isTeamMode && showService;
 
   const now = useMemo(() => new Date(), []);
-  const oneHourLater = useMemo(() => new Date(Date.now() + 60 * 60 * 1000), []);
+  const oneHourLater = useMemo(() => {
+    const current = new Date();
+    return new Date(current.getTime() + 60 * 60 * 1000);
+  }, []);
+  const defaultDateValue = useMemo(
+    () => toDateValue(defaultDate || now),
+    [defaultDate, now]
+  );
 
   const [customerId, setCustomerId] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [service, setService] = useState("");
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState(toDateValue(now));
+  const [date, setDate] = useState(defaultDateValue);
   const [startTime, setStartTime] = useState(toTimeValue(now));
   const [endTime, setEndTime] = useState(toTimeValue(oneHourLater));
   const [duration, setDuration] = useState(60);
@@ -172,14 +194,14 @@ export function CreateAppointmentDialog({
     queryKey: ["appointment-customers"],
     queryFn: () =>
       customersApi.getAll({ limit: 100 }).then((response) => response.data),
-    enabled: open,
+    enabled: open && isTeamMode,
   });
 
   const { data: employeesResponse } = useQuery({
     queryKey: ["appointment-employees"],
     queryFn: () =>
       employeesApi.getAll({ limit: 100 }).then((response) => response.data),
-    enabled: open,
+    enabled: open && isTeamMode,
   });
 
   const { data: servicesResponse } = useQuery({
@@ -188,7 +210,7 @@ export function CreateAppointmentDialog({
       servicesApi
         .getAll({ limit: 100, isActive: true })
         .then((response) => response.data),
-    enabled: open,
+    enabled: open && showTeamService,
   });
 
   const customers = useMemo(
@@ -211,7 +233,7 @@ export function CreateAppointmentDialog({
     setEmployeeId("");
     setService("");
     setTitle("");
-    setDate(toDateValue(current));
+    setDate(defaultDateValue);
     setStartTime(toTimeValue(current));
     setEndTime(toTimeValue(later));
     setDuration(60);
@@ -226,32 +248,17 @@ export function CreateAppointmentDialog({
     setNewCustomerPhone("");
   };
 
-  useEffect(() => {
-    if (!open) {
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
       resetForm();
       setSubmitError(null);
     }
-  }, [open]);
-
-  useEffect(() => {
-    if (submitError) setSubmitError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employeeId, date, startTime, endTime, allDay]);
-
-  const handleStartTimeChange = (value: string) => {
-    setStartTime(value);
-    setEndTime(addMinutes(value, duration));
+    onOpenChange(nextOpen);
   };
 
   const handleDurationChange = (value: number) => {
     setDuration(value);
     setEndTime(addMinutes(startTime, value));
-  };
-
-  const handleEndTimeChange = (value: string) => {
-    setEndTime(value);
-    const diff = minutesBetween(startTime, value);
-    if (diff > 0) setDuration(diff);
   };
 
   const createCustomerMutation = useMutation({
@@ -284,23 +291,47 @@ export function CreateAppointmentDialog({
   const createMutation = useMutation({
     mutationFn: async () => {
       setSubmitError(null);
-      const selectedService = services.find((item: any) => item._id === service);
+      const selectedService = isTeamMode
+        ? services.find((item: any) => item._id === service)
+        : null;
       const finalService = selectedService?.name || "";
       const effectiveStart = allDay ? "08:00" : startTime;
       const effectiveEnd = allDay ? "17:00" : endTime;
 
-      const response = await appointmentsApi.create({
-        customer: customerId,
-        employee: employeeId,
+      if (!isTeamMode) {
+        const start = allDay ? buildLocalDateTime(date, "00:00") : buildLocalDateTime(date, effectiveStart);
+        const end = allDay ? buildLocalDateTime(date, "23:59") : buildLocalDateTime(date, effectiveEnd);
+
+        const response = await calendarApi.createEvent({
+          title: title.trim(),
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          color,
+          allDay,
+          notes,
+          location,
+        });
+
+        return response.data;
+      }
+
+      const payload: Record<string, any> = {
         appointmentDate: date,
         startTime: effectiveStart,
         endTime: effectiveEnd,
         bookingNotes: notes,
         title,
-        service: finalService,
         location,
         color,
-      });
+      };
+
+      if (isTeamMode) {
+        payload.customer = customerId;
+        payload.employee = employeeId;
+        payload.service = finalService;
+      }
+
+      const response = await appointmentsApi.create(payload);
 
       try {
         await calendarApi.sync();
@@ -311,13 +342,14 @@ export function CreateAppointmentDialog({
       return response.data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendar-blocks"] });
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       queryClient.invalidateQueries({ queryKey: ["calendar-insights"] });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["calendar-appointments"] });
       toast.success("Appointment created");
       setSubmitError(null);
-      onOpenChange(false);
+      handleDialogOpenChange(false);
       onCreated?.();
     },
     onError: (error: any) => {
@@ -329,10 +361,10 @@ export function CreateAppointmentDialog({
   });
 
   const canSubmit =
-    Boolean(customerId) &&
-    Boolean(employeeId) &&
+    (!isTeamMode || (Boolean(customerId) && Boolean(employeeId))) &&
+    (isTeamMode || Boolean(title.trim())) &&
     Boolean(date) &&
-    (allDay || (Boolean(startTime) && Boolean(endTime))) &&
+    (allDay || (Boolean(startTime) && Boolean(endTime) && minutesBetween(startTime, endTime) > 0)) &&
     !createMutation.isPending;
 
   const selectedCustomer = customers.find((item: any) => item._id === customerId);
@@ -341,7 +373,7 @@ export function CreateAppointmentDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <div className="flex items-center gap-3">
@@ -355,87 +387,88 @@ export function CreateAppointmentDialog({
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           {/* LEFT COLUMN */}
           <div className="space-y-4">
-            {/* Customer */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-300">Customer</label>
-              <div className="flex items-center gap-2">
-                <div className="flex-1">
-                  <Select value={customerId} onValueChange={setCustomerId}>
-                    <SelectTrigger>
-                      <div className="flex items-center gap-2 truncate">
-                        <User className="h-3.5 w-3.5 text-gray-500" />
-                        <SelectValue placeholder="Select or search customer..." />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.length === 0 ? (
-                        <div className="px-3 py-2 text-xs text-gray-500">
-                          No customers found
+            {isTeamMode ? (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-300">Customer</label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Select value={customerId} onValueChange={setCustomerId}>
+                      <SelectTrigger>
+                        <div className="flex items-center gap-2 truncate">
+                          <User className="h-3.5 w-3.5 text-gray-500" />
+                          <SelectValue placeholder="Select or search customer..." />
                         </div>
-                      ) : (
-                        customers.map((customer: any) => (
-                          <SelectItem key={customer._id} value={customer._id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAddCustomer((value) => !value)}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#2a3547] bg-[#0d1526] text-blue-400 hover:bg-[#162338]"
-                  aria-label="Add new customer"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-
-              {showAddCustomer ? (
-                <div className="space-y-2 rounded-lg border border-[#2a3547] bg-[#0d1526] p-3">
-                  <Input
-                    value={newCustomerName}
-                    onChange={(event) => setNewCustomerName(event.target.value)}
-                    placeholder="Name"
-                  />
-                  <Input
-                    value={newCustomerEmail}
-                    onChange={(event) => setNewCustomerEmail(event.target.value)}
-                    placeholder="Email"
-                    type="email"
-                  />
-                  <Input
-                    value={newCustomerPhone}
-                    onChange={(event) => setNewCustomerPhone(event.target.value)}
-                    placeholder="Phone"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddCustomer(false)}
-                      className="h-8 text-xs"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => createCustomerMutation.mutate()}
-                      disabled={createCustomerMutation.isPending}
-                      className="h-8 text-xs"
-                    >
-                      {createCustomerMutation.isPending ? "Adding..." : "Add customer"}
-                    </Button>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.length === 0 ? (
+                          <div className="px-3 py-2 text-xs text-gray-500">
+                            No customers found
+                          </div>
+                        ) : (
+                          customers.map((customer: any) => (
+                            <SelectItem key={customer._id} value={customer._id}>
+                              {customer.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCustomer((value) => !value)}
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#2a3547] bg-[#0d1526] text-blue-400 hover:bg-[#162338]"
+                    aria-label="Add new customer"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
                 </div>
-              ) : null}
-            </div>
+
+                {showAddCustomer ? (
+                  <div className="space-y-2 rounded-lg border border-[#2a3547] bg-[#0d1526] p-3">
+                    <Input
+                      value={newCustomerName}
+                      onChange={(event) => setNewCustomerName(event.target.value)}
+                      placeholder="Name"
+                    />
+                    <Input
+                      value={newCustomerEmail}
+                      onChange={(event) => setNewCustomerEmail(event.target.value)}
+                      placeholder="Email"
+                      type="email"
+                    />
+                    <Input
+                      value={newCustomerPhone}
+                      onChange={(event) => setNewCustomerPhone(event.target.value)}
+                      placeholder="Phone"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAddCustomer(false)}
+                        className="h-8 text-xs"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => createCustomerMutation.mutate()}
+                        disabled={createCustomerMutation.isPending}
+                        className="h-8 text-xs"
+                      >
+                        {createCustomerMutation.isPending ? "Adding..." : "Add customer"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             {/* Service */}
-            {showService ? (
+            {showTeamService ? (
               <div className="space-y-2">
                 <label className="text-xs font-medium text-gray-300">Service</label>
                 <div className="flex items-center gap-2">
@@ -467,7 +500,7 @@ export function CreateAppointmentDialog({
                   <button
                     type="button"
                     onClick={() => {
-                      onOpenChange(false);
+                      handleDialogOpenChange(false);
                       router.push("/services");
                     }}
                     className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#2a3547] bg-[#0d1526] text-blue-400 hover:bg-[#162338]"
@@ -480,63 +513,70 @@ export function CreateAppointmentDialog({
               </div>
             ) : null}
 
-            {/* Employee */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-300">Employee</label>
-              <Select value={employeeId} onValueChange={setEmployeeId}>
-                <SelectTrigger>
-                  <div className="flex items-center gap-2 truncate">
-                    {selectedEmployee?.userId?.profileImage?.url ? (
-                      <img
-                        src={selectedEmployee.userId.profileImage.url}
-                        alt={selectedEmployee.userId?.name || "Employee"}
-                        className="h-5 w-5 rounded-full object-cover"
-                      />
-                    ) : (
-                      <User className="h-3.5 w-3.5 text-gray-500" />
-                    )}
-                    <SelectValue placeholder="Select employee..." />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.length === 0 ? (
-                    <div className="px-3 py-2 text-xs text-gray-500">
-                      No employees found
+            {isTeamMode ? (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-300">Employee</label>
+                <Select value={employeeId} onValueChange={setEmployeeId}>
+                  <SelectTrigger>
+                    <div className="flex items-center gap-2 truncate">
+                      {selectedEmployee?.userId?.profileImage?.url ? (
+                        <Image
+                          src={selectedEmployee.userId.profileImage.url}
+                          alt={selectedEmployee.userId?.name || "Employee"}
+                          width={20}
+                          height={20}
+                          unoptimized
+                          className="h-5 w-5 rounded-full object-cover"
+                        />
+                      ) : (
+                        <User className="h-3.5 w-3.5 text-gray-500" />
+                      )}
+                      <SelectValue placeholder="Select employee..." />
                     </div>
-                  ) : (
-                    employees.map((employee: any) => {
-                      const id = employee.userId?._id || employee._id;
-                      const name = employee.userId?.name || "Employee";
-                      const imageUrl = employee.userId?.profileImage?.url || "";
-                      const initials = name
-                        .split(" ")
-                        .map((part: string) => part[0])
-                        .slice(0, 2)
-                        .join("")
-                        .toUpperCase();
-                      return (
-                        <SelectItem key={id} value={id}>
-                          <div className="flex items-center gap-2">
-                            {imageUrl ? (
-                              <img
-                                src={imageUrl}
-                                alt={name}
-                                className="h-6 w-6 rounded-full object-cover"
-                              />
-                            ) : (
-                              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600/20 text-[10px] font-medium text-blue-300">
-                                {initials || "EM"}
-                              </span>
-                            )}
-                            <span>{name}</span>
-                          </div>
-                        </SelectItem>
-                      );
-                    })
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-gray-500">
+                        No employees found
+                      </div>
+                    ) : (
+                      employees.map((employee: any) => {
+                        const id = employee.userId?._id || employee._id;
+                        const name = employee.userId?.name || "Employee";
+                        const imageUrl = employee.userId?.profileImage?.url || "";
+                        const initials = name
+                          .split(" ")
+                          .map((part: string) => part[0])
+                          .slice(0, 2)
+                          .join("")
+                          .toUpperCase();
+                        return (
+                          <SelectItem key={id} value={id}>
+                            <div className="flex items-center gap-2">
+                              {imageUrl ? (
+                                <Image
+                                  src={imageUrl}
+                                  alt={name}
+                                  width={24}
+                                  height={24}
+                                  unoptimized
+                                  className="h-6 w-6 rounded-full object-cover"
+                                />
+                              ) : (
+                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600/20 text-[10px] font-medium text-blue-300">
+                                  {initials || "EM"}
+                                </span>
+                              )}
+                              <span>{name}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
             {/* Date */}
             <div className="space-y-2">
@@ -643,9 +683,14 @@ export function CreateAppointmentDialog({
                 onValueChange={(value) => handleDurationChange(Number(value))}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder={`${duration} min`} />
                 </SelectTrigger>
                 <SelectContent>
+                  {DURATION_OPTIONS.every((option) => option.value !== duration) ? (
+                    <SelectItem value={String(duration)}>
+                      {duration} min
+                    </SelectItem>
+                  ) : null}
                   {DURATION_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={String(option.value)}>
                       {option.label}
@@ -728,12 +773,18 @@ export function CreateAppointmentDialog({
 
         <div className="mt-4 flex flex-col gap-3 border-t border-[#1e2d40] pt-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-[11px] text-gray-500">
-            {selectedCustomer ? `Booking for ${selectedCustomer.name}` : "Select a customer to proceed"}
+            {isTeamMode
+              ? selectedCustomer
+                ? `Booking for ${selectedCustomer.name}`
+                : "Select a customer to proceed"
+              : title
+                ? `Booking: ${title}`
+                : "Add a title to proceed"}
           </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleDialogOpenChange(false)}
               disabled={createMutation.isPending}
             >
               Cancel
