@@ -28,12 +28,10 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Filter,
   LayoutGrid,
   LogIn,
   LogOut,
   Mail,
-  MoreVertical,
   Phone,
   Plus,
   Search,
@@ -124,13 +122,16 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [availabilityFilter, setAvailabilityFilter] = useState("all");
+  const [performanceFilter, setPerformanceFilter] = useState("all");
+  const [utilizationFilter, setUtilizationFilter] = useState("all");
   const [view, setView] = useState<"cards" | "schedule">("cards");
   const [employeePage, setEmployeePage] = useState(1);
   const employeePageSize = useViewportPageSize({
-    rowHeight: 118,
-    reservedHeight: 480,
-    min: 3,
-    max: 8,
+    rowHeight: 96,
+    reservedHeight: 430,
+    min: 4,
+    max: 4,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<"overview" | "schedule" | "performance" | "settings">("overview");
@@ -216,20 +217,48 @@ export default function EmployeesPage() {
 
   /* ── Kora Insights ── */
   const insights = useMemo(() => {
-    const out: { icon: any; tint: string; title: string; sub: string }[] = [];
+    const out: { icon: any; tint: string; title: string; sub: string; onSelect: () => void }[] = [];
     const over = [...employees].sort((a, b) => (b.utilizationRate || 0) - (a.utilizationRate || 0))[0];
     if (over && (over.utilizationRate || 0) > 100) {
-      out.push({ icon: Users, tint: "bg-red-600/15 text-red-400", title: `${empName(over).split(" ")[0]} is overbooked today`, sub: `${over.utilizationRate}% of capacity` });
+      out.push({
+        icon: Users,
+        tint: "bg-red-600/15 text-red-400",
+        title: `${empName(over).split(" ")[0]} is overbooked today`,
+        sub: `${over.utilizationRate}% of capacity`,
+        onSelect: () => {
+          setUtilizationFilter("overbooked");
+          setEmployeePage(1);
+        },
+      });
     }
     const free = [...employees]
       .filter((e) => e.status === "working")
       .sort((a, b) => (a.utilizationRate || 0) - (b.utilizationRate || 0))[0];
     if (free) {
-      out.push({ icon: Users, tint: "bg-emerald-600/15 text-emerald-400", title: `${empName(free).split(" ")[0]} has free availability`, sub: `${free.utilizationRate || 0}% utilization` });
+      out.push({
+        icon: Users,
+        tint: "bg-emerald-600/15 text-emerald-400",
+        title: `${empName(free).split(" ")[0]} has free availability`,
+        sub: `${free.utilizationRate || 0}% utilization`,
+        onSelect: () => {
+          setUtilizationFilter("underused");
+          setStatusFilter("working");
+          setEmployeePage(1);
+        },
+      });
     }
     const low = [...employees].sort((a, b) => (a.utilizationRate || 0) - (b.utilizationRate || 0))[0];
     if (low && (low.utilizationRate || 0) < 50) {
-      out.push({ icon: TrendingUp, tint: "bg-blue-600/15 text-blue-400", title: `${empName(low).split(" ")[0]} has low utilization`, sub: `${low.utilizationRate || 0}% this week` });
+      out.push({
+        icon: TrendingUp,
+        tint: "bg-blue-600/15 text-blue-400",
+        title: `${empName(low).split(" ")[0]} has low utilization`,
+        sub: `${low.utilizationRate || 0}% this week`,
+        onSelect: () => {
+          setUtilizationFilter("underused");
+          setEmployeePage(1);
+        },
+      });
     }
     return out.slice(0, 3);
   }, [employees]);
@@ -244,6 +273,16 @@ export default function EmployeesPage() {
     return employees.filter((e) => {
       if (roleFilter !== "all" && e.position !== roleFilter) return false;
       if (statusFilter !== "all" && e.status !== statusFilter) return false;
+      const attendance = attendanceByUser[String(e.userId?._id)];
+      if (availabilityFilter === "checked_in" && !attendance?.checkInTime) return false;
+      if (availabilityFilter === "not_checked_in" && attendance?.checkInTime) return false;
+      const rating = Number(e.avgRating || 0);
+      if (performanceFilter === "top_rated" && rating < 4.5) return false;
+      if (performanceFilter === "needs_attention" && rating >= 3.5) return false;
+      const utilization = Number(e.utilizationRate || 0);
+      if (utilizationFilter === "underused" && utilization >= 50) return false;
+      if (utilizationFilter === "balanced" && (utilization < 50 || utilization > 100)) return false;
+      if (utilizationFilter === "overbooked" && utilization <= 100) return false;
       if (search) {
         const q = search.toLowerCase();
         const hit = `${empName(e)} ${e.position || ""} ${e.userId?.email || ""}`.toLowerCase();
@@ -251,7 +290,7 @@ export default function EmployeesPage() {
       }
       return true;
     });
-  }, [employees, roleFilter, statusFilter, search]);
+  }, [attendanceByUser, availabilityFilter, employees, performanceFilter, roleFilter, search, statusFilter, utilizationFilter]);
 
   const employeePageCount = Math.max(1, Math.ceil(filtered.length / employeePageSize));
   const pagedEmployees = useMemo(() => {
@@ -325,19 +364,9 @@ export default function EmployeesPage() {
             <Button variant="outline" onClick={() => setAttendanceOpen(true)} className="hidden h-9 gap-1.5 sm:flex">
               <CalendarCheck className="h-4 w-4" /> Attendance
             </Button>
-            <div className="flex overflow-hidden rounded-lg shadow-[0_0_18px_rgba(37,99,235,0.35)]">
-              <Button onClick={() => setAddOpen(true)} className="h-9 rounded-r-none gap-1.5">
-                <Plus className="h-4 w-4" /> Add Employee
-              </Button>
-              <button
-                type="button"
-                onClick={() => setAddOpen(true)}
-                className="flex h-9 w-10 items-center justify-center border-l border-blue-400/30 bg-blue-600 text-white hover:bg-blue-700"
-                aria-label="Add employee options"
-              >
-                <ChevronRight className="h-4 w-4 rotate-90" />
-              </button>
-            </div>
+            <Button onClick={() => setAddOpen(true)} className="h-9 gap-1.5 shadow-[0_0_18px_rgba(37,99,235,0.35)]">
+              <Plus className="h-4 w-4" /> Add Employee
+            </Button>
           </div>
         }
       />
@@ -392,7 +421,12 @@ export default function EmployeesPage() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {insights.length ? (
                     insights.map((ins, i) => (
-                      <button key={i} className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-3 py-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:bg-[#122238]">
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={ins.onSelect}
+                        className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-3 py-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:bg-[#122238]"
+                      >
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${ins.tint}`}>
                         <ins.icon className="h-4 w-4" />
                       </div>
@@ -408,8 +442,19 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              <button className="flex shrink-0 items-center gap-2 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/70 px-4 py-2.5 text-sm text-gray-200 transition-colors hover:bg-[#1e2d40] lg:self-end">
-                View all insights <ArrowRight className="h-3.5 w-3.5" />
+              <button
+                type="button"
+                onClick={() => {
+                  setAvailabilityFilter("all");
+                  setPerformanceFilter("all");
+                  setUtilizationFilter("all");
+                  setRoleFilter("all");
+                  setStatusFilter("all");
+                  setEmployeePage(1);
+                }}
+                className="flex shrink-0 items-center gap-2 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/70 px-4 py-2.5 text-sm text-gray-200 transition-colors hover:bg-[#1e2d40] lg:self-end"
+              >
+                Reset filters <ArrowRight className="h-3.5 w-3.5" />
               </button>
             </div>
           </CardContent>
@@ -432,9 +477,22 @@ export default function EmployeesPage() {
             <option value="on_leave">On Leave</option>
             <option value="off">Off</option>
           </select>
-          <button className="flex h-10 items-center gap-1.5 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-4 text-xs text-gray-300 hover:bg-[#1e2d40]">
-            <Filter className="h-3.5 w-3.5" /> Filters
-          </button>
+          <select value={availabilityFilter} onChange={(e) => { setEmployeePage(1); setAvailabilityFilter(e.target.value); }} className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-4 text-xs text-gray-300 focus:outline-none">
+            <option value="all">All Availability</option>
+            <option value="checked_in">Checked In</option>
+            <option value="not_checked_in">Not Checked In</option>
+          </select>
+          <select value={performanceFilter} onChange={(e) => { setEmployeePage(1); setPerformanceFilter(e.target.value); }} className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-4 text-xs text-gray-300 focus:outline-none">
+            <option value="all">All Performance</option>
+            <option value="top_rated">Top Rated</option>
+            <option value="needs_attention">Needs Attention</option>
+          </select>
+          <select value={utilizationFilter} onChange={(e) => { setEmployeePage(1); setUtilizationFilter(e.target.value); }} className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-4 text-xs text-gray-300 focus:outline-none">
+            <option value="all">All Utilization</option>
+            <option value="underused">Underused</option>
+            <option value="balanced">Balanced</option>
+            <option value="overbooked">Overbooked</option>
+          </select>
           <div className="ml-auto flex h-10 items-center gap-0.5 rounded-lg bg-[#0d1a2d] p-0.5">
             <button onClick={() => { setEmployeePage(1); setView("cards"); }} className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-[11px] font-medium transition-colors ${view === "cards" ? "bg-blue-600 text-white shadow-[0_0_14px_rgba(37,99,235,0.45)]" : "text-gray-400"}`}>
               <LayoutGrid className="h-3.5 w-3.5" /> Cards View
@@ -450,8 +508,8 @@ export default function EmployeesPage() {
           {/* Directory */}
           <div className="min-w-0">
             {isLoading ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-44 w-full" />)}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-52 w-full rounded-xl" />)}
               </div>
             ) : filtered.length === 0 ? (
               <Card><CardContent className="flex flex-col items-center justify-center py-16 text-center">
@@ -499,14 +557,14 @@ export default function EmployeesPage() {
                     <Card
                       key={e._id}
                       onClick={() => { setSelectedId(e._id); setTab("overview"); }}
-                      className={`cursor-pointer overflow-hidden border-[#173050] bg-[#0b1728] transition-colors hover:border-blue-500/50 ${active ? "border-blue-500 shadow-[0_0_22px_rgba(37,99,235,0.25)]" : ""}`}
+                      className={`group cursor-pointer overflow-hidden border-[#173050] bg-[linear-gradient(145deg,#0b1728,#081525_62%,#0d1d32)] transition-all hover:-translate-y-0.5 hover:border-blue-500/50 hover:shadow-[0_14px_32px_rgba(3,10,24,0.34)] ${active ? "border-blue-500 shadow-[0_0_22px_rgba(37,99,235,0.25)]" : ""}`}
                     >
-                      <CardContent className="p-3.5">
+                      <CardContent className="flex min-h-[214px] flex-col p-3.5">
                         <div className="flex items-start gap-3">
                           <div className="relative shrink-0">
-                            <Avatar className="h-12 w-12 ring-1 ring-white/10">
+                            <Avatar className="h-12 w-12 ring-1 ring-white/10 shadow-[0_0_18px_rgba(37,99,235,0.18)]">
                               {e.userId?.profileImage?.url ? <AvatarImage src={e.userId.profileImage.url} alt={empName(e)} /> : null}
-                              <AvatarFallback>{getInitials(empName(e))}</AvatarFallback>
+                              <AvatarFallback className="bg-[#173050] text-sm text-blue-100">{getInitials(empName(e))}</AvatarFallback>
                             </Avatar>
                             {am.state === "in" && (
                               <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-[#0d1a2d] bg-emerald-500">
@@ -517,12 +575,14 @@ export default function EmployeesPage() {
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[15px] font-semibold text-gray-100">{empName(e)}</p>
                             <p className="truncate text-[11px] text-gray-500">{e.position}</p>
-                            <p className={`mt-0.5 flex items-center gap-1.5 text-[11px] ${sm.text}`}><span className={`h-2 w-2 rounded-full ${sm.dot}`} />{sm.label}</p>
+                            <p className={`mt-1 flex items-center gap-1.5 text-[11px] ${sm.text}`}>
+                              <span className={`h-2 w-2 rounded-full ${sm.dot}`} />
+                              {sm.label}
+                            </p>
                           </div>
-                          <div className="flex flex-col items-end gap-1.5">
-                            <MoreVertical className="h-4 w-4 shrink-0 text-gray-600" />
+                          <div className="flex min-w-0 flex-col items-end gap-1.5">
                             {am.state !== "none" && (
-                              <span className={`flex items-center gap-1 whitespace-nowrap rounded-full border border-[#1e2d40] px-1.5 py-0.5 text-[9px] font-medium ${am.text}`}>
+                              <span className={`max-w-24 truncate rounded-full border border-[#1e2d40] px-1.5 py-0.5 text-[9px] font-medium ${am.text}`}>
                                 <span className={`h-1.5 w-1.5 rounded-full ${am.dot}`} />
                                 {am.label}
                               </span>
@@ -531,15 +591,15 @@ export default function EmployeesPage() {
                         </div>
 
                         <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[#173050] pt-3">
-                          <div className="min-w-0">
+                          <div className="min-w-0 rounded-lg bg-[#071321]/70 p-2">
                             <p className="truncate text-[10px] text-gray-500">Today&apos;s Appts</p>
                             <p className="mt-1 text-lg font-semibold leading-none text-white">{count}</p>
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 rounded-lg bg-[#071321]/70 p-2">
                             <p className="truncate text-[10px] text-gray-500">Utilization</p>
                             <p className={`mt-1 text-lg font-semibold leading-none ${utilColor(util)}`}>{util}%</p>
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 rounded-lg bg-[#071321]/70 p-2">
                             <p className="truncate text-[10px] text-gray-500">Rating</p>
                             <p className="mt-1 flex items-center gap-0.5 text-lg font-semibold leading-none text-white">
                               <Star className="h-3 w-3 fill-amber-400 text-amber-400" />{(e.avgRating || 0).toFixed(1)}
@@ -551,7 +611,7 @@ export default function EmployeesPage() {
                           <div className={`h-full rounded-full ${utilBar(util)}`} style={{ width: `${Math.min(100, util)}%` }} />
                         </div>
 
-                        <button onClick={(event) => { event.stopPropagation(); setSelectedId(e._id); setTab("overview"); }} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#173050] bg-[#0a1525] py-2 text-xs text-gray-300 transition-colors hover:border-blue-500/50 hover:text-blue-300">
+                        <button onClick={(event) => { event.stopPropagation(); setSelectedId(e._id); setTab("overview"); }} className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#173050] bg-[#0a1525] py-2 text-xs text-gray-300 transition-colors group-hover:border-blue-500/45 group-hover:text-blue-300">
                           View Profile <ArrowRight className="h-3.5 w-3.5" />
                         </button>
                       </CardContent>

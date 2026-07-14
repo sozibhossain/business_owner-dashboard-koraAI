@@ -120,7 +120,7 @@ export function Header({ title, subtitle, action }: HeaderProps) {
             <Link href="/settings">Billing</Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="#">Help Center</Link>
+            <Link href="/help-center">Help Center</Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

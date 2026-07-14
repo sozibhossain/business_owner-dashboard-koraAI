@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { accountingApi } from "@/lib/api";
 import { Header } from "@/components/layout/header";
@@ -24,6 +25,7 @@ import {
   AlertTriangle,
   CalendarDays,
   ChevronDown,
+  CreditCard,
   Download,
   DollarSign,
   Eye,
@@ -107,11 +109,16 @@ const PIE_COLORS: Record<string, string> = {
 
 export default function AccountingPage() {
   const queryClient = useQueryClient();
+  const headerActionRef = useRef<HTMLDivElement>(null);
+  const tableActionRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [period, setPeriod] = useState("month");
   const [createOpen, setCreateOpen] = useState(false);
+  const [actionOpen, setActionOpen] = useState(false);
+  const [tableActionOpen, setTableActionOpen] = useState(false);
+  const [createType, setCreateType] = useState("invoice");
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [invoiceForm, setInvoiceForm] = useState({
     amount: "",
@@ -132,6 +139,32 @@ export default function AccountingPage() {
     }, 0);
     return () => window.clearTimeout(openTimer);
   }, []);
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      const isHeaderAction = headerActionRef.current?.contains(target);
+      const isTableAction = tableActionRef.current?.contains(target);
+
+      if (!isHeaderAction) {
+        setActionOpen(false);
+      }
+      if (!isTableAction) {
+        setTableActionOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
+
+  const openCreateDialog = (type = "invoice") => {
+    setCreateType(type);
+    setInvoiceForm((current) => ({ ...current, type }));
+    setCreateOpen(true);
+    setActionOpen(false);
+    setTableActionOpen(false);
+  };
 
   const { data: dashboardResponse, isLoading: dashboardLoading } = useQuery({
     queryKey: ["accounting-dashboard"],
@@ -162,23 +195,32 @@ export default function AccountingPage() {
     enabled: Boolean(selectedInvoiceId),
   });
 
+  const createTypeLabel =
+    {
+      invoice: "Invoice",
+      quote: "Quote",
+      expense: "Expense",
+      credit_note: "Credit Note",
+    }[createType] || "Invoice";
+
   const createInvoiceMutation = useMutation({
     mutationFn: () =>
       accountingApi.create({
         amount: Number(invoiceForm.amount),
         dueDate: invoiceForm.dueDate || undefined,
         description: invoiceForm.description || undefined,
-        type: invoiceForm.type || "invoice",
+        type: createType || invoiceForm.type || "invoice",
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["accounting-dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["accounting-invoices"] });
       setCreateOpen(false);
+      setCreateType("invoice");
       setInvoiceForm({ amount: "", dueDate: "", description: "", type: "invoice" });
-      toast.success("Invoice created");
+      toast.success(`${createTypeLabel} created`);
     },
     onError: (error: any) =>
-      toast.error(error?.response?.data?.message || "Failed to create invoice"),
+      toast.error(error?.response?.data?.message || `Failed to create ${createTypeLabel.toLowerCase()}`),
   });
 
   const recordPaymentMutation = useMutation({
@@ -282,10 +324,10 @@ export default function AccountingPage() {
   ];
 
   const koraInsights = useMemo(() => {
-    const items: { icon: string; title: string; sub: string; color: string }[] = [];
+    const items: { icon: any; title: string; sub: string; color: string }[] = [];
     if ((dashboard.outstandingCount || 0) > 0) {
       items.push({
-        icon: "⚠️",
+        icon: AlertTriangle,
         title: `${dashboard.outstandingCount} outstanding invoices`,
         sub: `${formatCurrency(dashboard.outstandingAmount || 0)} awaiting payment`,
         color: "bg-amber-600/15 text-amber-300",
@@ -296,7 +338,7 @@ export default function AccountingPage() {
       const prev = chartData[chartData.length - 2]?.revenue || 0;
       if (last > prev) {
         items.push({
-          icon: "📈",
+          icon: TrendingUp,
           title: "Revenue trending up",
           sub: "Latest period shows growth",
           color: "bg-emerald-600/15 text-emerald-300",
@@ -305,7 +347,7 @@ export default function AccountingPage() {
     }
     if (items.length === 0) {
       items.push({
-        icon: "✓",
+        icon: Sparkles,
         title: "Finances on track",
         sub: "No anomalies detected",
         color: "bg-emerald-600/15 text-emerald-300",
@@ -314,17 +356,24 @@ export default function AccountingPage() {
     return items;
   }, [dashboard.outstandingCount, dashboard.outstandingAmount, chartData]);
 
-  const quickActions = [
-    { label: "Create Invoice", icon: Receipt, onClick: () => setCreateOpen(true) },
+  const accountingActions = [
+    { label: "Create Invoice", description: "Create a customer invoice", icon: Receipt, onClick: () => openCreateDialog("invoice") },
     {
       label: "Record Payment",
-      icon: Send,
+      description: "Review pending invoices to mark paid",
+      icon: CreditCard,
       onClick: () => {
         setStatusFilter("pending");
         setPage(1);
+        setActionOpen(false);
+        setTableActionOpen(false);
+        toast.info("Select a pending invoice and use the payment action.");
       },
     },
-    { label: "Add Report", icon: FileText, onClick: exportInvoices },
+    { label: "Create Quote", description: "Create an estimate before invoicing", icon: FileText, onClick: () => openCreateDialog("quote") },
+    { label: "Create Expense", description: "Add a business expense", icon: DollarSign, onClick: () => openCreateDialog("expense") },
+    { label: "Create Credit Note", description: "Issue a refund or correction", icon: Receipt, onClick: () => openCreateDialog("credit_note") },
+    { label: "Export Report", description: "Download accounting report data", icon: Download, onClick: () => { setActionOpen(false); setTableActionOpen(false); exportInvoices(); } },
   ];
 
   return (
@@ -338,10 +387,40 @@ export default function AccountingPage() {
               <Download className="w-3.5 h-3.5 mr-1" />
               Export
             </Button>
-            <Button size="sm" className="h-8 bg-blue-600 text-xs hover:bg-blue-700" onClick={() => setCreateOpen(true)}>
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Create Invoice
-            </Button>
+            <div ref={headerActionRef} className="relative">
+              <Button
+                size="sm"
+                className="h-8 bg-blue-600 text-xs hover:bg-blue-700"
+                onClick={() => {
+                  setActionOpen((current) => !current);
+                  setTableActionOpen(false);
+                }}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                New Action
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+              {actionOpen ? (
+                <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-lg border border-[#1e2d40] bg-[#0d1a2d] shadow-xl">
+                  {accountingActions.map((action) => (
+                    <button
+                      key={action.label}
+                      type="button"
+                      onClick={action.onClick}
+                      className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[#1e2d40]"
+                    >
+                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600/15 text-blue-300">
+                        <action.icon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-xs font-medium text-gray-100">{action.label}</span>
+                        <span className="block text-[10px] leading-4 text-gray-500">{action.description}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
         }
       />
@@ -349,8 +428,16 @@ export default function AccountingPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Invoice</DialogTitle>
-            <DialogDescription>Create a new invoice through your accounting system.</DialogDescription>
+            <DialogTitle>Create {createTypeLabel}</DialogTitle>
+            <DialogDescription>
+              {createType === "expense"
+                ? "Add a business expense for operational tracking."
+                : createType === "quote"
+                  ? "Create an estimate that can later be converted to an invoice."
+                  : createType === "credit_note"
+                    ? "Create a correction or refund document."
+                    : "Create a new invoice through your accounting system."}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -376,7 +463,7 @@ export default function AccountingPage() {
               <Input
                 value={invoiceForm.description}
                 onChange={(event) => setInvoiceForm((current) => ({ ...current, description: event.target.value }))}
-                placeholder="Service invoice"
+                placeholder={createType === "expense" ? "Expense notes or vendor" : `${createTypeLabel} description`}
               />
             </div>
             <Button
@@ -384,7 +471,7 @@ export default function AccountingPage() {
               disabled={!Number(invoiceForm.amount) || createInvoiceMutation.isPending}
               onClick={() => createInvoiceMutation.mutate()}
             >
-              Create Invoice
+              Create {createTypeLabel}
             </Button>
           </div>
         </DialogContent>
@@ -422,31 +509,33 @@ export default function AccountingPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="space-y-5 p-3 sm:p-4 lg:p-6">
+      <div className="p-3 sm:p-4 lg:p-6">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_272px]">
+          <div className="min-w-0 space-y-4">
         {/* Stats with sparklines */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
           {dashboardLoading
             ? Array.from({ length: 4 }).map((_, index) => (
-                <Card key={index}>
-                  <CardContent className="pt-4">
+                <Card key={index} className="border-[#173050] bg-[radial-gradient(circle_at_100%_0%,rgba(37,99,235,0.12),transparent_34%),linear-gradient(135deg,#071321,#0b1a2f)]">
+                  <CardContent className="min-h-[110px] pt-4">
                     <Skeleton className="h-14 w-full" />
                   </CardContent>
                 </Card>
               ))
             : stats.map((item) => (
-                <Card key={item.label}>
-                  <CardContent className="pt-4 pb-3">
+                <Card key={item.label} className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_100%_0%,rgba(37,99,235,0.14),transparent_34%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                  <CardContent className="min-h-[110px] px-4 py-4">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex min-w-0 items-center gap-3">
                         <div
-                          className={`w-9 h-9 rounded-lg ${item.color} flex items-center justify-center shrink-0`}
+                          className={`w-10 h-10 rounded-xl ${item.color} flex items-center justify-center shrink-0 shadow-[0_0_22px_rgba(59,130,246,0.18)]`}
                         >
                           <item.icon className="w-4 h-4 text-white" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[10px] text-gray-400 leading-tight">{item.label}</p>
-                          <p className="text-base font-bold text-white leading-tight">{item.value}</p>
-                          <p className="text-[10px] text-emerald-400 leading-tight">{item.helper}</p>
+                          <p className="truncate text-[11px] font-medium text-gray-300">{item.label}</p>
+                          <p className="mt-2 text-2xl font-bold leading-none text-white">{item.value}</p>
+                          <p className="mt-2 truncate text-[11px] text-emerald-400">{item.helper}</p>
                         </div>
                       </div>
                       {sparklineFor(item.seed, item.spark)}
@@ -456,9 +545,6 @@ export default function AccountingPage() {
               ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Main content */}
-          <div className="lg:col-span-2 space-y-4">
             {/* Revenue chart */}
             <Card>
               <CardHeader>
@@ -492,7 +578,7 @@ export default function AccountingPage() {
                     No revenue data available for this period.
                   </p>
                 ) : (
-                  <ResponsiveContainer width="100%" height={180}>
+                  <ResponsiveContainer width="100%" height={210}>
                     <AreaChart data={chartData}>
                       <defs>
                         <linearGradient id="accountingRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -552,11 +638,39 @@ export default function AccountingPage() {
                           className="h-9 w-72 pl-8 text-xs"
                         />
                       </div>
-                      <Button className="h-9 gap-2 bg-blue-600 text-xs hover:bg-blue-700" onClick={() => setCreateOpen(true)}>
-                        <Plus className="h-4 w-4" />
-                        Create Invoice
-                        <ChevronDown className="h-4 w-4 border-l border-blue-400/30 pl-1" />
-                      </Button>
+                      <div ref={tableActionRef} className="relative">
+                        <Button
+                          className="h-9 gap-2 bg-blue-600 text-xs hover:bg-blue-700"
+                          onClick={() => {
+                            setTableActionOpen((current) => !current);
+                            setActionOpen(false);
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Create Invoice
+                          <ChevronDown className="h-4 w-4 border-l border-blue-400/30 pl-1" />
+                        </Button>
+                        {tableActionOpen ? (
+                          <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-lg border border-[#1e2d40] bg-[#0d1a2d] shadow-xl">
+                            {accountingActions.map((action) => (
+                              <button
+                                key={action.label}
+                                type="button"
+                                onClick={action.onClick}
+                                className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[#1e2d40]"
+                              >
+                                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600/15 text-blue-300">
+                                  <action.icon className="h-4 w-4" />
+                                </span>
+                                <span className="min-w-0">
+                                  <span className="block text-xs font-medium text-gray-100">{action.label}</span>
+                                  <span className="block text-[10px] leading-4 text-gray-500">{action.description}</span>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-1 bg-[#0d1a2d] p-1 rounded-lg flex-wrap w-fit">
@@ -727,33 +841,46 @@ export default function AccountingPage() {
 
           {/* Right panel */}
           <div className="space-y-4">
-            {/* Kora Insights */}
-            <Card className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_8%_20%,rgba(37,99,235,0.18),transparent_26%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600/20 shadow-[0_0_18px_rgba(59,130,246,0.28)]">
-                    <Sparkles className="h-4 w-4 text-blue-400" />
-                  </div>
-                  <span className="text-lg font-semibold text-white">Kora Insights</span>
+            <Card className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_50%_18%,rgba(37,99,235,0.28),transparent_34%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <CardContent className="px-4 py-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-white">Kora Insights</span>
+                  <Sparkles className="h-4 w-4 text-blue-400" />
+                </div>
+                <div className="mx-auto mb-4 flex h-28 w-28 items-center justify-center rounded-full bg-blue-600/10 shadow-[0_0_42px_rgba(37,99,235,0.45)]">
+                  <Image src="/kora.png" alt="Kora" width={112} height={112} className="h-28 w-28 object-contain" priority />
                 </div>
                 <div className="space-y-2">
-                  {koraInsights.map((insight) => (
-                    <div
-                      key={insight.title}
-                      className={`flex min-h-[62px] items-start gap-3 rounded-lg border border-[#1e2d40] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] ${insight.color}`}
-                    >
-                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0d1a2d]/70 text-sm">{insight.icon}</span>
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-medium text-gray-100">{insight.title}</p>
-                        <p className="mt-1 truncate text-[11px] opacity-75">{insight.sub}</p>
+                  {koraInsights.slice(0, 3).map((insight) => {
+                    const InsightIcon = insight.icon;
+                    return (
+                      <div
+                        key={insight.title}
+                        className={`flex min-h-[62px] items-start gap-3 rounded-lg border border-[#1e2d40] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] ${insight.color}`}
+                      >
+                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0d1a2d]/70">
+                          <InsightIcon className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 text-xs font-medium text-gray-100">{insight.title}</p>
+                          <p className="mt-1 line-clamp-2 text-[11px] opacity-75">{insight.sub}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-4 h-9 w-full border-blue-500/50 bg-blue-600/20 text-xs text-blue-100 hover:bg-blue-600/30"
+                  onClick={() => toast.info("Kora financial assistant is ready.")}
+                >
+                  <Sparkles className="mr-2 h-3.5 w-3.5" />
+                  Ask Kora anything...
+                </Button>
               </CardContent>
             </Card>
 
-            {/* Payments donut */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Payments Overview</CardTitle>
@@ -763,14 +890,14 @@ export default function AccountingPage() {
                   <p className="text-xs text-gray-500">No payment data yet.</p>
                 ) : (
                   <>
-                    <ResponsiveContainer width="100%" height={140}>
+                    <ResponsiveContainer width="100%" height={132}>
                       <PieChart>
                         <Pie
                           data={pieData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={38}
-                          outerRadius={58}
+                          innerRadius={36}
+                          outerRadius={56}
                           paddingAngle={3}
                           dataKey="value"
                         >
@@ -792,7 +919,7 @@ export default function AccountingPage() {
                         />
                       </PieChart>
                     </ResponsiveContainer>
-                    <div className="space-y-1.5 mt-2">
+                    <div className="space-y-1.5">
                       {pieData.map((entry) => (
                         <div
                           key={entry.name}
@@ -814,25 +941,40 @@ export default function AccountingPage() {
               </CardContent>
             </Card>
 
-            {/* Quick Actions */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-3">
-                {quickActions.map((action) => (
+                <div className="grid grid-cols-3 gap-2">
                   <button
-                    key={action.label}
-                    onClick={action.onClick}
-                    className="flex min-h-[104px] flex-col items-center justify-center gap-2 rounded-lg bg-[#1e2d40] px-2 py-3 text-center transition-colors hover:bg-[#2a3547]"
+                    type="button"
+                    onClick={() => openCreateDialog("invoice")}
+                    className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-lg border border-[#1e2d40] bg-[#0d1a2d] px-2 py-3 text-center text-[11px] text-gray-200 transition-colors hover:bg-[#10213a]"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-blue-600/15 flex items-center justify-center shrink-0">
-                      <action.icon className="w-4 h-4 text-blue-400" />
-                    </div>
-                    <span className="text-[11px] leading-tight text-gray-300">{action.label}</span>
+                    <Receipt className="h-5 w-5 text-blue-400" />
+                    Create Invoice
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter("pending");
+                      setPage(1);
+                      toast.info("Select a pending invoice and use the payment action.");
+                    }}
+                    className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-lg border border-[#1e2d40] bg-[#0d1a2d] px-2 py-3 text-center text-[11px] text-gray-200 transition-colors hover:bg-[#10213a]"
+                  >
+                    <CreditCard className="h-5 w-5 text-blue-400" />
+                    Record Payment
+                  </button>
+                  <button
+                    type="button"
+                    onClick={exportInvoices}
+                    className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-lg border border-[#1e2d40] bg-[#0d1a2d] px-2 py-3 text-center text-[11px] text-gray-200 transition-colors hover:bg-[#10213a]"
+                  >
+                    <Download className="h-5 w-5 text-blue-400" />
+                    Add Report
+                  </button>
                 </div>
               </CardContent>
             </Card>
@@ -842,3 +984,4 @@ export default function AccountingPage() {
     </div>
   );
 }
+

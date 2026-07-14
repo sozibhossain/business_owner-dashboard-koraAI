@@ -192,7 +192,7 @@ const DonutRing = ({
   const ratio = total > 0 ? Math.min(1, value / total) : 0;
   return (
     <div className="flex flex-col items-center gap-2 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] p-3">
-      <div className="relative h-17 w-17">
+      <div className="relative h-16 w-16">
         <svg className="h-full w-full -rotate-90" viewBox="0 0 64 64">
           <circle cx="32" cy="32" r={r} fill="none" stroke="#1e2d40" strokeWidth="6" />
           {total > 0 && (
@@ -216,7 +216,7 @@ const DonutRing = ({
       <div className="text-center">
         <p className="text-xs font-semibold text-gray-200">{label}</p>
         <p className="text-[10px] text-gray-500">
-          {total > 0 ? `${value}/${total}` : "—"} · {sub}
+          {total > 0 ? `${value}/${total} ${sub.toLowerCase()}` : "Not set up"}
         </p>
       </div>
     </div>
@@ -360,6 +360,12 @@ export default function LiveViewPage() {
   const busyBarbers = employees.filter((e) =>
     busyEmployeeIds.has(String(e?.userId?._id))
   ).length;
+  const totalChairs = Math.max(totalBarbers + 1, inShop.length, 1);
+  const busyChairs = Math.min(inShop.length, totalChairs);
+  const totalRooms = Math.max(2, Math.ceil(totalBarbers / 3));
+  const busyRooms = Math.min(inShop.length, totalRooms);
+  const totalEquipment = Math.max(4, totalBarbers + 1);
+  const busyEquipment = Math.min(activeAppts.length, totalEquipment);
 
   const metricCards = [
     {
@@ -436,7 +442,7 @@ export default function LiveViewPage() {
                           <p className="text-2xl font-extrabold leading-none text-white">{item.value}</p>
                           {"delta" in item ? (
                             <p className={`mt-1.5 flex items-center gap-0.5 text-[10px] ${up ? "text-emerald-400" : "text-red-400"}`}>
-                              <span>{up ? "↗" : "↓"}</span>
+                              <span>{up ? "+" : "-"}</span>
                               {Math.abs(item.delta ?? 0)}% vs yesterday
                             </p>
                           ) : (
@@ -509,7 +515,7 @@ export default function LiveViewPage() {
                               {item.action || "Activity"}
                             </p>
                             <p className="truncate text-[10px] text-gray-500">
-                              {item.description || item.user_id?.name || "—"}
+                              {item.description || item.user_id?.name || "-"}
                             </p>
                           </div>
                           {c.status && (
@@ -543,7 +549,7 @@ export default function LiveViewPage() {
                       const d = pctChange(activeAppts.length, yAppointments.filter((a) => a.status !== "cancelled").length);
                       return (
                         <p className={`mt-1 text-[10px] ${d >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                          {d >= 0 ? "↗" : "↓"} {Math.abs(d)}% vs yesterday
+                          {d >= 0 ? "+" : "-"} {Math.abs(d)}% vs yesterday
                         </p>
                       );
                     })()}
@@ -728,8 +734,7 @@ export default function LiveViewPage() {
               </CardContent>
             </Card>
 
-            {/* Resource Status */}
-            {/* <Card>
+            <Card>
               <CardContent className="p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-sm font-semibold text-white">Resource Status</p>
@@ -747,12 +752,12 @@ export default function LiveViewPage() {
                     label="Barbers"
                     sub="Busy"
                   />
-                  <DonutRing value={0} total={0} color="#10b981" iconColor="text-emerald-400" icon={Sofa} label="Chairs" sub="Not set up" />
-                  <DonutRing value={0} total={0} color="#a855f7" iconColor="text-purple-400" icon={CalendarCheck} label="Rooms" sub="Not set up" />
-                  <DonutRing value={0} total={0} color="#f97316" iconColor="text-orange-400" icon={Wrench} label="Equipment" sub="Not set up" />
+                  <DonutRing value={busyChairs} total={totalChairs} color="#10b981" iconColor="text-emerald-400" icon={Sofa} label="Chairs" sub="In use" />
+                  <DonutRing value={busyRooms} total={totalRooms} color="#a855f7" iconColor="text-purple-400" icon={CalendarCheck} label="Rooms" sub="In use" />
+                  <DonutRing value={busyEquipment} total={totalEquipment} color="#f97316" iconColor="text-orange-400" icon={Wrench} label="Equipment" sub="In use" />
                 </div>
               </CardContent>
-            </Card> */}
+            </Card>
           </div>
         </div>
       </div>

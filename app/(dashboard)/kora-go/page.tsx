@@ -21,14 +21,15 @@ import { asArray, formatDate, getInitials, timeAgo } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   ArrowRight,
+  BarChart3,
   Bell,
   CalendarDays,
   Check,
   CheckCircle2,
   ChevronRight,
-  CircleHelp,
   ClipboardCheck,
   Coffee,
+  Download,
   KeyRound,
   MessageCircle,
   MoreHorizontal,
@@ -36,6 +37,8 @@ import {
   QrCode,
   Send,
   Settings,
+  ShieldCheck,
+  Smartphone,
   TrendingUp,
   Users,
   X,
@@ -45,6 +48,7 @@ const statusVariant: Record<string, any> = {
   active: "success",
   invited: "warning",
   disabled: "destructive",
+  pending_verification: "secondary",
 };
 
 const requestLabels: Record<string, string> = {
@@ -78,7 +82,7 @@ const MiniPhone = ({ requestsCount }: { requestsCount: number }) => (
     </div>
     <div className="rounded-xl border border-[#1e2d40] bg-[#0d1a2d] p-3">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[10px] font-semibold text-white">Today's Schedule</p>
+        <p className="text-[10px] font-semibold text-white">Today&apos;s Schedule</p>
         <p className="text-[9px] text-blue-400">{requestsCount || 3} Appointments</p>
       </div>
       {[
@@ -146,11 +150,13 @@ export default function KoraGoPage() {
   const { data: activityResponse, isLoading: activityLoading } = useQuery({
     queryKey: ["kora-go-live-activity"],
     queryFn: () => koraGoApi.getLiveActivity().then((response) => response.data),
+    refetchInterval: 30000,
   });
 
   const { data: requestsResponse } = useQuery({
     queryKey: ["kora-go-app-requests"],
     queryFn: () => koraGoApi.getAppRequests({ limit: 20 }).then((response) => response.data),
+    refetchInterval: 30000,
   });
 
   const { data: settingsResponse } = useQuery({
@@ -208,6 +214,30 @@ export default function KoraGoPage() {
   const liveActivity = asArray(activityResponse?.data?.currentlyActive);
   const appRequests = asArray(requestsResponse?.data);
   const employees = useMemo(() => asArray(employeesResponse?.data), [employeesResponse?.data]);
+  const requestSummary = useMemo(
+    () =>
+      appRequests.reduce(
+        (totals: Record<string, number>, request: any) => {
+          const status = String(request.status || "pending").toLowerCase();
+          totals[status] = (totals[status] || 0) + 1;
+          return totals;
+        },
+        { pending: 0, approved: 0, rejected: 0 }
+      ),
+    [appRequests]
+  );
+  const accessStatusCounts = useMemo(
+    () =>
+      accessEntries.reduce(
+        (totals: Record<string, number>, entry: any) => {
+          const status = String(entry.status || "disabled").toLowerCase();
+          totals[status] = (totals[status] || 0) + 1;
+          return totals;
+        },
+        { active: 0, invited: 0, disabled: 0, pending_verification: 0 }
+      ),
+    [accessEntries]
+  );
 
   const invitedUserIds = useMemo(
     () => new Set(accessEntries.map((entry: any) => String(entry.old_employee_id?._id || entry.old_employee_id))),
@@ -256,10 +286,33 @@ export default function KoraGoPage() {
   ];
 
   const shortcuts = [
-    { icon: Settings, title: "App Settings", sub: "Manage preferences", tone: "bg-blue-500/15 text-blue-400" },
-    { icon: Bell, title: "Notifications", sub: "Manage alerts", tone: "bg-red-500/15 text-red-400" },
-    { icon: ClipboardCheck, title: "Activity Report", sub: "View app usage", tone: "bg-emerald-500/15 text-emerald-400" },
-    { icon: CircleHelp, title: "Help Center", sub: "Get support", tone: "bg-sky-500/15 text-sky-400" },
+    { icon: ShieldCheck, title: "Permissions", sub: "Control employee access", tone: "bg-blue-500/15 text-blue-400" },
+    { icon: Bell, title: "Notifications", sub: "Push, request, schedule alerts", tone: "bg-red-500/15 text-red-400" },
+    { icon: QrCode, title: "QR Onboarding", sub: "Share app download links", tone: "bg-emerald-500/15 text-emerald-400" },
+    { icon: Settings, title: "App Settings", sub: "Visibility and controls", tone: "bg-sky-500/15 text-sky-400" },
+  ];
+
+  const analytics = [
+    {
+      label: "Daily Active Users",
+      value: activityResponse?.data?.activeInLastDay || summary.activeNow || 0,
+      helper: "Employees active today",
+    },
+    {
+      label: "Weekly Active Users",
+      value: activityResponse?.data?.activeInLastWeek || summary.activeEmployeesCount || 0,
+      helper: "Rolling 7 day usage",
+    },
+    {
+      label: "Requests Submitted",
+      value: appRequests.length,
+      helper: `${requestSummary.pending || 0} awaiting review`,
+    },
+    {
+      label: "Adoption Rate",
+      value: `${employees.length ? Math.round(((summary.totalWithAccess || 0) / employees.length) * 100) : 0}%`,
+      helper: `${summary.totalWithAccess || 0} of ${employees.length || 0} employees`,
+    },
   ];
 
   return (
@@ -467,7 +520,7 @@ export default function KoraGoPage() {
                 <CardContent className="p-0">
                   <div className="border-b border-[#1e2d40] p-4">
                     <h2 className="text-base font-semibold text-white">Live App Activity</h2>
-                    <p className="mt-1 text-xs text-gray-400">Real-time activity from your team in the app.</p>
+                    <p className="mt-1 text-xs text-gray-400">Real-time app actions, refreshed automatically.</p>
                   </div>
                   <div className="divide-y divide-[#1e2d40] p-4 pt-2">
                     {activityLoading
@@ -516,13 +569,27 @@ export default function KoraGoPage() {
                     View all requests <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
+                <div className="mb-3 grid gap-2 sm:grid-cols-3">
+                  {[
+                    ["Pending", requestSummary.pending || 0, "text-amber-400"],
+                    ["Approved", requestSummary.approved || 0, "text-emerald-400"],
+                    ["Rejected", requestSummary.rejected || 0, "text-red-400"],
+                  ].map(([label, value, tone]) => (
+                    <div key={String(label)} className="rounded-xl border border-[#1e2d40] bg-[#07111f] px-3 py-2">
+                      <p className={`text-lg font-bold ${tone}`}>{value}</p>
+                      <p className="text-[11px] text-gray-500">{label}</p>
+                    </div>
+                  ))}
+                </div>
                 {appRequests.length === 0 ? (
                   <p className="rounded-xl border border-[#1e2d40] bg-[#07111f] py-10 text-center text-sm text-gray-500">
                     No pending requests from the app.
                   </p>
                 ) : (
                   <div className="grid gap-3 md:grid-cols-3">
-                    {appRequests.slice(0, 3).map((request: any) => (
+                    {appRequests.slice(0, 3).map((request: any) => {
+                      const requestStatus = String(request.status || "pending").toLowerCase();
+                      return (
                       <div key={request._id} className="rounded-xl border border-[#1e2d40] bg-[#07111f] p-4">
                         <div className="mb-3 flex items-start justify-between gap-3">
                           <div className="flex min-w-0 items-center gap-3">
@@ -536,7 +603,12 @@ export default function KoraGoPage() {
                               </p>
                             </div>
                           </div>
-                          <Badge variant="warning" className="shrink-0 text-[10px]">Pending</Badge>
+                          <Badge
+                            variant={requestStatus === "approved" ? "success" : requestStatus === "rejected" ? "destructive" : "warning"}
+                            className="shrink-0 text-[10px] capitalize"
+                          >
+                            {requestStatus}
+                          </Badge>
                         </div>
                         <p className="min-h-10 text-xs leading-relaxed text-gray-400">
                           {request.reason || request.dateRange?.start
@@ -547,21 +619,22 @@ export default function KoraGoPage() {
                           <Button variant="outline" className="h-8 rounded-lg text-[11px]">View</Button>
                           <Button
                             className="h-8 rounded-lg bg-emerald-600/15 text-[11px] text-emerald-400 hover:bg-emerald-600/25"
-                            disabled={requestMutation.isPending}
+                            disabled={requestMutation.isPending || requestStatus !== "pending"}
                             onClick={() => requestMutation.mutate({ id: String(request._id), action: "approve" })}
                           >
                             Approve
                           </Button>
                           <Button
                             className="h-8 rounded-lg bg-red-600/15 text-[11px] text-red-400 hover:bg-red-600/25"
-                            disabled={requestMutation.isPending}
+                            disabled={requestMutation.isPending || requestStatus !== "pending"}
                             onClick={() => requestMutation.mutate({ id: String(request._id), action: "reject" })}
                           >
                             Reject
                           </Button>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -573,6 +646,18 @@ export default function KoraGoPage() {
               <CardContent className="p-4">
                 <h2 className="text-base font-semibold text-white">Mobile App Preview</h2>
                 <p className="mt-1 text-xs text-gray-400">See how your team experiences Kora Go.</p>
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {[
+                    ["Active", accessStatusCounts.active || 0, "text-emerald-400"],
+                    ["Invited", accessStatusCounts.invited || 0, "text-amber-400"],
+                    ["Disabled", accessStatusCounts.disabled || 0, "text-red-400"],
+                  ].map(([label, value, tone]) => (
+                    <div key={String(label)} className="rounded-xl border border-[#1e2d40] bg-[#07111f] p-2 text-center">
+                      <p className={`text-base font-bold ${tone}`}>{value}</p>
+                      <p className="text-[10px] text-gray-500">{label}</p>
+                    </div>
+                  ))}
+                </div>
                 <div className="mt-5">
                   <MiniPhone requestsCount={appRequests.length} />
                 </div>
@@ -581,7 +666,8 @@ export default function KoraGoPage() {
 
             <Card className="bg-[#091526]">
               <CardContent className="p-4">
-                <h2 className="mb-3 text-base font-semibold text-white">App Shortcuts</h2>
+                <h2 className="text-base font-semibold text-white">App Administration</h2>
+                <p className="mt-1 text-xs text-gray-400">Manage mobile app permissions and notifications.</p>
                 <div className="grid grid-cols-2 gap-3">
                   {shortcuts.map((shortcut) => (
                     <button
@@ -602,21 +688,23 @@ export default function KoraGoPage() {
               </CardContent>
             </Card>
 
-            {/* <Card className="bg-[#091526]">
+            <Card className="bg-[#091526]">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <h2 className="text-base font-semibold text-white">Get the Kora Go App</h2>
                     <p className="mt-2 text-xs leading-relaxed text-gray-400">
-                      Scan the QR code to download for your team.
+                      Share the QR code or download links with employees.
                     </p>
                     <div className="mt-5 flex flex-wrap gap-2">
-                      <span className="rounded-lg border border-[#1e2d40] bg-black px-3 py-2 text-[10px] font-semibold text-white">
+                      <button className="inline-flex items-center gap-1.5 rounded-lg border border-[#1e2d40] bg-black px-3 py-2 text-[10px] font-semibold text-white transition-colors hover:border-blue-500/50">
+                        <Smartphone className="h-3.5 w-3.5" />
                         App Store
-                      </span>
-                      <span className="rounded-lg border border-[#1e2d40] bg-black px-3 py-2 text-[10px] font-semibold text-white">
+                      </button>
+                      <button className="inline-flex items-center gap-1.5 rounded-lg border border-[#1e2d40] bg-black px-3 py-2 text-[10px] font-semibold text-white transition-colors hover:border-blue-500/50">
+                        <Download className="h-3.5 w-3.5" />
                         Google Play
-                      </span>
+                      </button>
                     </div>
                   </div>
                   <div className="shrink-0">
@@ -624,7 +712,27 @@ export default function KoraGoPage() {
                   </div>
                 </div>
               </CardContent>
-            </Card> */}
+            </Card>
+
+            <Card className="bg-[#091526]">
+              <CardContent className="p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-blue-400" />
+                  <h2 className="text-base font-semibold text-white">Mobile Workforce Analytics</h2>
+                </div>
+                <div className="space-y-2">
+                  {analytics.map((item) => (
+                    <div key={item.label} className="rounded-xl border border-[#1e2d40] bg-[#07111f] p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs font-semibold text-gray-200">{item.label}</p>
+                        <p className="text-lg font-bold text-white">{item.value}</p>
+                      </div>
+                      <p className="mt-1 text-[11px] text-gray-500">{item.helper}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </aside>
         </div>
       </div>

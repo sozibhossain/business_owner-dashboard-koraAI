@@ -25,6 +25,7 @@ import {
   MoreVertical,
   Paperclip,
   Plane,
+  Search,
   SlidersHorizontal,
   Stethoscope,
   Wallet,
@@ -130,6 +131,11 @@ export default function RequestsPage() {
   const [tab, setTab] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [search, setSearch] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [employeeFilter, setEmployeeFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
   const [requestPage, setRequestPage] = useState(1);
   const requestPageSize = useViewportPageSize({
     rowHeight: 78,
@@ -189,6 +195,7 @@ export default function RequestsPage() {
     let approvedThisWeek = 0;
     let approvedLastWeek = 0;
     let rejectedThisWeek = 0;
+    let rejectedTotal = 0;
 
     requests.forEach((r) => {
       const updated = new Date(r.updatedAt || r.createdAt);
@@ -199,7 +206,10 @@ export default function RequestsPage() {
         if (updated >= weekStart) approvedThisWeek += 1;
         else if (updated >= lastWeekStart && updated < weekStart) approvedLastWeek += 1;
       }
-      if (r.status === "rejected" && updated >= weekStart) rejectedThisWeek += 1;
+      if (r.status === "rejected") {
+        rejectedTotal += 1;
+        if (updated >= weekStart) rejectedThisWeek += 1;
+      }
     });
 
     const pct = (cur: number, prev: number) =>
@@ -210,6 +220,7 @@ export default function RequestsPage() {
       approvedToday,
       approvedThisWeek,
       rejectedThisWeek,
+      rejectedTotal,
       approvedTodayDelta: pct(approvedToday, approvedYesterday),
       approvedWeekDelta: pct(approvedThisWeek, approvedLastWeek),
     };
@@ -225,12 +236,65 @@ export default function RequestsPage() {
     [requests]
   );
 
+  const employeeOptions = useMemo(
+    () => Array.from(new Set(requests.map((r) => empName(r)).filter(Boolean))).sort(),
+    [requests]
+  );
+
+  const typeOptions = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          requests.map((r) => {
+            const meta = displayType(r);
+            return [r.__source === "leave" ? `leave:${r.__leaveType || "Leave"}` : r.type || "other", meta.label];
+          })
+        )
+      ).sort((a, b) => a[1].localeCompare(b[1])),
+    [requests]
+  );
+
   const visible = useMemo(() => {
-    const list = tab === "all" ? requests : requests.filter((r) => r.status === tab);
+    const now = new Date();
+    const weekStart = startOfWeek(now);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const list = (tab === "all" ? requests : requests.filter((r) => r.status === tab)).filter((r) => {
+      const meta = displayType(r);
+      const typeKey = r.__source === "leave" ? `leave:${r.__leaveType || "Leave"}` : r.type || "other";
+      if (employeeFilter !== "all" && empName(r) !== employeeFilter) return false;
+      if (typeFilter !== "all" && typeKey !== typeFilter) return false;
+      if (dateFilter !== "all") {
+        const created = new Date(r.createdAt);
+        if (dateFilter === "today" && !isSameDay(created, now)) return false;
+        if (dateFilter === "week" && created < weekStart) return false;
+        if (dateFilter === "month" && created < monthStart) return false;
+      }
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const haystack = [
+          empName(r),
+          r.employees_id?.position,
+          r.employees_id?.email,
+          meta.label,
+          requestRange(r),
+          requestDuration(r),
+          r.reason,
+          r.adminNote,
+          r.status,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+
     return [...list].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-  }, [requests, tab]);
+  }, [dateFilter, employeeFilter, requests, search, tab, typeFilter]);
 
   const requestPageCount = Math.max(1, Math.ceil(visible.length / requestPageSize));
   const pagedRequests = useMemo(() => {
@@ -276,6 +340,13 @@ export default function RequestsPage() {
     setRequestPage(1);
     setTab(nextTab);
   };
+  const clearFilters = () => {
+    setSearch("");
+    setEmployeeFilter("all");
+    setTypeFilter("all");
+    setDateFilter("all");
+    setRequestPage(1);
+  };
 
   const metricCards = [
     {
@@ -304,10 +375,10 @@ export default function RequestsPage() {
     },
     {
       label: "Rejected",
-      value: metrics.rejectedThisWeek,
+      value: metrics.rejectedTotal,
       icon: XCircle,
       tint: "bg-red-600/15 text-red-400",
-      sub: "This week",
+      sub: `${metrics.rejectedThisWeek} this week`,
       onClick: () => selectTab("rejected"),
     },
   ];
@@ -389,10 +460,80 @@ export default function RequestsPage() {
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#1e2d40]">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((current) => !current)}
+              className="flex items-center gap-1.5 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/60 px-3 py-1.5 text-xs text-gray-300 hover:bg-[#1e2d40]"
+            >
               <SlidersHorizontal className="h-3.5 w-3.5" /> Filters <ChevronDown className="h-3.5 w-3.5" />
             </button>
           </div>
+          {filtersOpen ? (
+            <div className="grid w-full grid-cols-1 gap-2 border-t border-[#173050] pt-2 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(9rem,1fr))_auto]">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500" />
+                <input
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setRequestPage(1);
+                  }}
+                  placeholder="Search requests, employees, reasons..."
+                  className="h-10 w-full rounded-lg border border-[#1e2d40] bg-[#0d1526] pl-9 pr-3 text-sm text-gray-200 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <select
+                value={employeeFilter}
+                onChange={(event) => {
+                  setEmployeeFilter(event.target.value);
+                  setRequestPage(1);
+                }}
+                className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-3 text-xs text-gray-300 focus:outline-none"
+              >
+                <option value="all">All Employees</option>
+                {employeeOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={typeFilter}
+                onChange={(event) => {
+                  setTypeFilter(event.target.value);
+                  setRequestPage(1);
+                }}
+                className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-3 text-xs text-gray-300 focus:outline-none"
+              >
+                <option value="all">All Request Types</option>
+                {typeOptions.map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={dateFilter}
+                onChange={(event) => {
+                  setDateFilter(event.target.value);
+                  setRequestPage(1);
+                }}
+                className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1526] px-3 text-xs text-gray-300 focus:outline-none"
+              >
+                <option value="all">All Dates</option>
+                <option value="today">Submitted Today</option>
+                <option value="week">Submitted This Week</option>
+                <option value="month">Submitted This Month</option>
+              </select>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="h-10 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/60 px-4 text-xs font-medium text-gray-300 hover:bg-[#1e2d40]"
+              >
+                Clear
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {/* ── Main grid ── */}
@@ -614,17 +755,44 @@ export default function RequestsPage() {
                         <p className="mb-4 text-sm font-semibold text-gray-200">History</p>
                         <div className="space-y-3">
                           <div className="flex items-start gap-2.5">
-                            <span className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full ${sm.cls}`}>
+                            <span className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-blue-600/30 bg-blue-600/15 text-blue-300">
                               <Clock className="h-3 w-3" />
+                            </span>
+                            <div>
+                              <p className="text-xs font-medium text-gray-200">Submitted</p>
+                              <p className="text-[10px] text-gray-500">{fmtDateTime(selected.createdAt)}</p>
+                              <p className="text-[10px] text-gray-500">Request entered the approval queue</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2.5">
+                            <span className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border ${sm.cls}`}>
+                              {selected.status === "approved" ? (
+                                <Check className="h-3 w-3" />
+                              ) : selected.status === "rejected" ? (
+                                <X className="h-3 w-3" />
+                              ) : (
+                                <Clock className="h-3 w-3" />
+                              )}
                             </span>
                             <div>
                               <p className="text-xs font-medium text-gray-200">{sm.label}</p>
                               <p className="text-[10px] text-gray-500">{fmtDateTime(selected.updatedAt || selected.createdAt)}</p>
                               <p className="text-[10px] text-gray-500">
-                                {isPending ? "Waiting for your approval" : `${sm.label} by you`}
+                                {isPending ? "Waiting for owner review" : `${sm.label} by you`}
                               </p>
                             </div>
                           </div>
+                          {selected.adminNote ? (
+                            <div className="flex items-start gap-2.5">
+                              <span className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border border-[#1e2d40] bg-[#0d1a2d] text-gray-400">
+                                <FileText className="h-3 w-3" />
+                              </span>
+                              <div>
+                                <p className="text-xs font-medium text-gray-200">Manager note added</p>
+                                <p className="text-[10px] text-gray-500">{selected.adminNote}</p>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
 

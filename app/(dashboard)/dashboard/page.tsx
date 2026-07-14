@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -9,11 +9,9 @@ import {
   accountingApi,
   appointmentsApi,
   employeesApi,
-  requestsApi,
   userApi,
 } from "@/lib/api";
 import { Header } from "@/components/layout/header";
-import { KoraOrb } from "@/components/kora-orb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -26,13 +24,9 @@ import {
   Users,
   DollarSign,
   Send,
-  Sparkles,
   CalendarPlus2,
-  Receipt,
-  MessageSquare,
   Settings,
   Globe,
-  ListTodo,
   BarChart3,
   Scissors,
   Zap,
@@ -41,14 +35,11 @@ import {
   ArrowRight,
   FileSliders,
   SquareCheckBig,
-  Mail,
-  Gift,
   MoreVertical,
 } from "lucide-react";
 
 const today = new Date().toISOString().split("T")[0];
 const QUICK_ACTIONS_PAGE_SIZE = 8;
-const SUGGESTIONS_PAGE_SIZE = 4;
 
 /* ── Sparkline mini-chart ── */
 const SparkLine = ({ seed, color }: { seed: number; color: string }) => {
@@ -155,12 +146,8 @@ export default function BusinessOwnerDashboard() {
   );
   const [schedulePage, setSchedulePage] = useState(0);
   const [quickActionsPage, setQuickActionsPage] = useState(0);
-  const [suggestionsPage, setSuggestionsPage] = useState(0);
   const [quickActionsPageSize, setQuickActionsPageSize] = useState(
     QUICK_ACTIONS_PAGE_SIZE,
-  );
-  const [suggestionsPageSize, setSuggestionsPageSize] = useState(
-    SUGGESTIONS_PAGE_SIZE,
   );
   const [koraMessages, setKoraMessages] = useState<
     Array<{ role: "user" | "assistant"; content: string }>
@@ -191,7 +178,6 @@ export default function BusinessOwnerDashboard() {
     const updatePageSizes = () => {
       const isMobile = window.innerWidth < 640;
       setQuickActionsPageSize(isMobile ? 4 : QUICK_ACTIONS_PAGE_SIZE);
-      setSuggestionsPageSize(isMobile ? 2 : SUGGESTIONS_PAGE_SIZE);
     };
 
     updatePageSizes();
@@ -215,12 +201,6 @@ export default function BusinessOwnerDashboard() {
     queryFn: () => employeesApi.getAll({ limit: 100 }).then((r) => r.data),
   });
 
-  const { data: requestsData } = useQuery({
-    queryKey: ["dashboard-requests"],
-    queryFn: () =>
-      requestsApi.getAll({ status: "pending", limit: 20 }).then((r) => r.data),
-  });
-
   const { data: accountingData } = useQuery({
     queryKey: ["dashboard-accounting"],
     queryFn: () => accountingApi.getDashboard().then((r) => r.data.data),
@@ -228,7 +208,6 @@ export default function BusinessOwnerDashboard() {
 
   const appointments = asArray<DashboardAppointment>(appointmentsData?.data);
   const employees = asArray<any>(employeesData?.data);
-  const pendingRequests = asArray<any>(requestsData?.data);
   const activeEmployees = employees.filter((e: DashboardEmployee) =>
     ["working", "on_break"].includes(e.status || ""),
   );
@@ -336,61 +315,15 @@ export default function BusinessOwnerDashboard() {
     },
   ];
 
-  const koraSuggestions = useMemo(
-    () => [
-      {
-        icon: BarChart3,
-        iconBg: "bg-blue-600/20",
-        iconColor: "text-[#79C1EC]",
-        title: "Increase prices on weekends?",
-        sub: "You could earn more per week.",
-        color: "border-[#1e2d40]",
-      },
-      {
-        icon: Mail,
-        iconBg: "bg-indigo-600/20",
-        iconColor: "text-[#79C1EC]",
-        title: `${pendingRequests.length || 2} messages need a reply`,
-        sub: "Average response time: 2h 15m",
-        color: "border-[#1e2d40]",
-      },
-      {
-        icon: Gift,
-        iconBg: "bg-emerald-600/20",
-        iconColor: "text-emerald-300",
-        title: "Check your SEO",
-        sub: "Reward clients after 5 visits.",
-        color: "border-[#1e2d40]",
-      },
-      {
-        icon: CalendarPlus2,
-        iconBg: "bg-amber-600/20",
-        iconColor: "text-amber-300",
-        title: "Slow day this Thursday",
-        sub: "Add a promo to fill your schedule.",
-        color: "border-[#1e2d40]",
-      },
-    ],
-    [pendingRequests.length],
-  );
-
   const schedulePageCount = getPageCount(appointments.length, schedulePageSize);
   const quickActionsPageCount = getPageCount(
     quickActions.length,
     quickActionsPageSize,
   );
-  const suggestionsPageCount = getPageCount(
-    koraSuggestions.length,
-    suggestionsPageSize,
-  );
   const safeSchedulePage = Math.min(schedulePage, schedulePageCount - 1);
   const safeQuickActionsPage = Math.min(
     quickActionsPage,
     quickActionsPageCount - 1,
-  );
-  const safeSuggestionsPage = Math.min(
-    suggestionsPage,
-    suggestionsPageCount - 1,
   );
   const visibleAppointments = paginate(
     appointments,
@@ -401,11 +334,6 @@ export default function BusinessOwnerDashboard() {
     quickActions,
     safeQuickActionsPage,
     quickActionsPageSize,
-  );
-  const visibleKoraSuggestions = paginate(
-    koraSuggestions,
-    safeSuggestionsPage,
-    suggestionsPageSize,
   );
 
   const getGuestName = (a: DashboardAppointment) =>
@@ -553,7 +481,7 @@ export default function BusinessOwnerDashboard() {
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <span className="whitespace-nowrap text-xs text-gray-400">
-                                {apt.startTime?.slice(0, 5)} –{" "}
+                                {apt.startTime?.slice(0, 5)} -{" "}
                                 {apt.endTime?.slice(0, 5)}
                               </span>
                               <Avatar className="h-7 w-7">
@@ -573,7 +501,11 @@ export default function BusinessOwnerDashboard() {
                       pageCount={schedulePageCount}
                       onPageChange={setSchedulePage}
                     />
-                    <button className="flex h-10 w-fit items-center justify-center gap-2 rounded-lg bg-[#0d1a2d] px-6 text-sm font-medium text-white transition-colors hover:bg-[#122238]">
+                    <button
+                      type="button"
+                      onClick={() => router.push("/calendar")}
+                      className="flex h-10 w-fit items-center justify-center gap-2 rounded-lg bg-[#0d1a2d] px-6 text-sm font-medium text-white transition-colors hover:bg-[#122238]"
+                    >
                       View full calendar <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -745,60 +677,6 @@ export default function BusinessOwnerDashboard() {
           </CardContent>
         </Card>
 
-        {/* ── Kora Suggestions ── */}
-        {/* <div className="dashboard-secondary">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-blue-400" />
-              <h3 className="text-sm font-semibold text-gray-200">
-                Kora Suggestions
-              </h3>
-            </div>
-            <button className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1">
-              View all <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {visibleKoraSuggestions.map((s) => {
-              const SuggestionIcon = s.icon;
-              return (
-                <div
-                  key={s.title}
-                  className={`rounded-xl border ${s.color} bg-[#0d1a2d] p-4 cursor-pointer hover:bg-[#1e2d40] transition-colors`}
-                >
-                  <div className="flex items-start gap-3 mb-3">
-                    <div
-                      className={`w-9 h-9 rounded-xl ${s.iconBg} flex items-center justify-center shrink-0`}
-                    >
-                      <SuggestionIcon
-                        className={`h-4.5 w-4.5 ${s.iconColor}`}
-                        strokeWidth={1.9}
-                      />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-gray-100 leading-tight">
-                        {s.title}
-                      </p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">
-                        {s.sub}
-                      </p>
-                    </div>
-                  </div>
-                  <button className="text-[11px] text-blue-400 flex items-center gap-1 hover:gap-1.5 transition-all font-medium">
-                    Take action <ChevronRight className="w-3 h-3" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-4">
-            <PaginationControls
-              page={safeSuggestionsPage}
-              pageCount={suggestionsPageCount}
-              onPageChange={setSuggestionsPage}
-            />
-          </div>
-        </div> */}
       </div>
     </div>
   );
