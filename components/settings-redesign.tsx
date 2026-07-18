@@ -229,18 +229,25 @@ function Progress({ icon, label, value, pct }: { icon: ElementType; label: strin
 function RightRail({ profile, onAskKora, onQuickAction }: { profile?: ProfileData; onAskKora?: () => void; onQuickAction?: (action: QuickActionId) => void } = {}) {
   const firstName = profileValue(profile, "name", "Alex Barber").split(" ")[0] || "Alex";
   return (
-    <aside className="settings-right-rail min-h-0 space-y-3 xl:sticky xl:top-3">
-      <Card className={card}>
+    <aside className="settings-right-rail flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+      <Card className={`${card} shrink-0`}>
         <CardContent className="p-4 2xl:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h3 className="text-base font-semibold text-white 2xl:text-lg">Kora AI Assistant</h3>
             <span className="rounded-md bg-purple-600/40 px-2 py-1 text-xs font-semibold text-purple-100">BETA</span>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center overflow-hidden 2xl:h-24 2xl:w-24">
-              <Image src="/kora.png" alt="Kora" width={96} height={96} unoptimized className="kora-image h-full w-full object-contain" />
+          <div className="grid items-center gap-4 sm:grid-cols-[5.75rem_1fr]">
+            <div className="flex h-[5.75rem] w-[5.75rem] shrink-0 items-center justify-center">
+              <Image
+                src="/kora.png"
+                alt="Kora"
+                width={104}
+                height={104}
+                unoptimized
+                className="kora-image h-[5.75rem] w-[5.75rem] object-contain drop-shadow-[0_0_22px_rgba(59,130,246,0.45)]"
+              />
             </div>
-            <p className="text-sm leading-6 text-gray-200">Hi {firstName}! I can help you manage your settings and optimize your experience.</p>
+            <p className="min-w-0 text-sm leading-6 text-gray-200">Hi {firstName}! I can help you manage your settings and optimize your experience.</p>
           </div>
           <button type="button" onClick={onAskKora} className="mt-4 flex h-10 w-full items-center justify-between rounded-lg border border-[#1e2d40] bg-[#081523] px-4 text-sm font-medium text-gray-100 2xl:h-11">
             <span className="flex min-w-0 items-center gap-2"><Sparkles className="h-4 w-4 shrink-0 text-blue-400" /><span className="truncate">Ask Kora anything...</span></span>
@@ -248,9 +255,9 @@ function RightRail({ profile, onAskKora, onQuickAction }: { profile?: ProfileDat
           </button>
         </CardContent>
       </Card>
-      <Card className={`${card} dashboard-secondary`}>
+      <Card className={`${card} dashboard-secondary flex min-h-0 flex-1 flex-col`}>
         <CardHeader className="p-4 pb-1 2xl:p-5 2xl:pb-2"><CardTitle className="text-base 2xl:text-lg">Quick Actions</CardTitle></CardHeader>
-        <CardContent className="p-4 pt-0 2xl:p-5 2xl:pt-0">
+        <CardContent className="min-h-0 flex-1 overflow-auto p-4 pt-0 2xl:p-5 2xl:pt-0">
           <button type="button" onClick={() => onQuickAction?.("profile")} className="block w-full text-left"><Row icon={CreditCard} title="View Profile" sub="View and edit your profile" /></button>
           <button type="button" onClick={() => onQuickAction?.("team")} className="block w-full text-left"><Row icon={Users} title="Manage Team" sub="Add or manage team members" /></button>
           <button type="button" onClick={() => onQuickAction?.("billing")} className="block w-full text-left"><Row icon={Receipt} title="Billing Portal" sub="Update payment methods" /></button>
@@ -296,7 +303,7 @@ function General({
   const timezone = profileValue(profile, "timezone", "(GMT+1) Berlin, Germany");
   const interfaceSettings = profile?.settings?.interface || {};
   return (
-    <div className="space-y-3 2xl:space-y-4">
+    <div className="space-y-3 pb-3 2xl:space-y-4">
       <div className="grid gap-3 lg:grid-cols-2 2xl:gap-4">
         <Section title="Account Information" subtitle="Update your account details and preferences.">
           <div className="grid gap-4 lg:grid-cols-[7.5rem_1fr] 2xl:grid-cols-[8.5rem_1fr]">
@@ -402,13 +409,13 @@ function Notifications({ unreadCount = 0, profile }: { unreadCount?: number; pro
   return <div className="space-y-5"><div className="grid gap-5 lg:grid-cols-2"><ToggleList title="Notification Channels" items={["Email Notifications", "Push Notifications", "SMS Notifications", "WhatsApp Notifications"]} /><Section title="Notification Status" subtitle="Check the status of your notification channels."><Row icon={Mail} title="Email Address" sub={profileValue(profile, "email", "alex@koraai.de")} right={<span className="text-sm text-emerald-400">Verified</span>} /><Row icon={Smartphone} title="Phone Number" sub={profileValue(profile, "phoneNumber", profileValue(profile, "phone", "+49 30 12345678"))} right={<span className="text-sm text-emerald-400">Verified</span>} /><Row icon={Bell} title="Unread Notifications" sub="Loaded from /notification/unread-count" right={<span className="text-sm text-blue-400">{unreadCount}</span>} /></Section></div><Section title="Event Notifications" subtitle="Choose which business events create alerts."><div className="grid gap-6 md:grid-cols-3">{["Bookings & Messages", "Team Requests", "Payments & Website"].map((group, groupIndex) => <div key={group}><h4 className="mb-3 text-sm font-medium text-gray-100">{group}</h4>{[["New Bookings", "New Messages", "Missed Calls"], ["Employee Requests", "Schedule Changes", "Time Off Updates"], ["Payment Alerts", "Website Leads", "New Reviews"]][groupIndex].map((item) => <label key={item} className="mb-2 flex items-center gap-2 text-sm text-gray-300"><input type="checkbox" defaultChecked className="h-4 w-4 rounded accent-blue-600" />{item}</label>)}</div>)}</div></Section><div className="grid gap-5 lg:grid-cols-2"><ToggleList title="Push Notifications (Mobile App)" items={["New Appointment", "Incoming Message", "Employee Request", "Payment Received", "Website Lead", "New Review"]} /><ToggleList title="WhatsApp Notifications" items={["New Booking", "Customer Message", "Payment Alert", "Urgent Employee Request", "Missed Call", "Daily Summary"]} /><ToggleList title="Kora AI Notifications" items={["AI found missed opportunities", "AI found unanswered leads", "AI recommends follow-up", "Weekly AI Performance Report"]} /><Section title="Digest Settings" subtitle="Choose when and how often you want summaries."><div className="grid gap-6 sm:grid-cols-2"><div className="grid grid-cols-2 gap-3"><SelectField label="Quiet Start" value="22:00" icon={Clock} /><SelectField label="Quiet End" value="08:00" icon={Clock} /></div><div>{["Daily Summary", "Weekly Summary", "Monthly Report"].map((item, index) => <label key={item} className="mb-2 flex items-center gap-2 text-sm text-gray-300"><input type="checkbox" defaultChecked={index < 2} className="accent-blue-600" />{item}</label>)}</div></div></Section></div><ProTip>Configure your notifications to never miss important updates.</ProTip></div>;
 }
 
-function Billing({ subscription, teamCount = 4, onOpenPortal }: { subscription?: SubscriptionData; teamCount?: number; onOpenPortal?: () => void } = {}) {
+function Billing({ subscription, teamCount = 4, onOpenPortal, onUpgrade }: { subscription?: SubscriptionData; teamCount?: number; onOpenPortal?: () => void; onUpgrade?: () => void } = {}) {
   const planName = subscription?.plan?.name || subscription?.planName || subscription?.currentPlan?.name || "Professional";
   const status = subscription?.status || "Active";
   const price = subscription?.plan?.price ?? subscription?.plan?.amount ?? 49.99;
   const cycle = subscription?.billingCycle || "month";
   const nextBilling = subscription?.nextBillingDate ? new Date(subscription.nextBillingDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Jul 15, 2026";
-  return <div className="space-y-5"><div className="grid gap-5 lg:grid-cols-[1.25fr_0.9fr]"><Section title="Current Plan"><div className="flex items-start gap-6"><IconBox icon={Crown} bg="bg-blue-600/15" color="text-white" /><div className="flex-1"><div className="flex items-center gap-3"><h3 className="text-2xl font-semibold text-white">{planName} Plan</h3><span className="rounded bg-emerald-600/20 px-2 py-1 text-xs text-emerald-400">{status}</span></div><p className="mt-3 text-2xl text-white">EUR {price} <span className="text-sm text-gray-400">/{cycle}</span></p><p className="mt-2 text-sm text-gray-400">Next billing: {nextBilling}</p><div className="mt-6 grid gap-3 sm:grid-cols-2">{["Unlimited AI Assistant", "Inbox", "Calendar", "Accounting", "Website Builder", "10 Employees", "Live View"].map((item) => <p key={item} className="flex items-center gap-2 text-sm text-gray-300"><Check className="h-4 w-4 text-emerald-400" />{item}</p>)}</div><div className="mt-7 grid grid-cols-3 gap-3"><Button onClick={onOpenPortal}>Upgrade</Button><Button variant="outline" onClick={onOpenPortal}>Downgrade</Button><Button variant="destructive">Cancel</Button></div></div></div></Section><Section title="Billing Summary"><Row icon={Crown} title="Current Plan" sub={planName} /><Row icon={CreditCard} title={cycle === "annual" ? "Annual" : "Monthly"} sub={`EUR ${price}`} /><Row icon={Calendar} title="Next Payment" sub={nextBilling} /><Row icon={CheckCircle2} title="Status" sub={status} right={<span className="text-emerald-400">{status}</span>} /></Section></div><div className="grid gap-5 lg:grid-cols-2"><Section title="Payment Methods"><Row icon={CreditCard} title="Credit Card" sub="Mastercard **** 2845, expires 08 / 2029" right={<MoreVertical className="h-4 w-4 text-gray-500" />} /><Row icon={Wallet} title="SEPA Payments" sub="Bank transfer mandate ready" right={<Button size="sm" variant="outline">Manage</Button>} /><Button className="mt-4 w-full" onClick={onOpenPortal}>Update Payment Method</Button></Section><Section title="Billing Address"><Row icon={Building2} title="KoraAI GmbH" sub="Unter den Linden 10, 10117 Berlin, Germany" right={null} /><p className="mt-2 text-sm text-gray-400">VAT Number: DE123456789</p><Button className="mt-5 w-full">Edit Address</Button></Section></div><Section title="Billing History">{["INV-2026-001", "INV-2026-002", "INV-2026-003"].map((invoice, index) => <div key={invoice} className="grid grid-cols-[1fr_1fr_1fr_1fr_90px] items-center border-b border-[#1e2d40] py-3 text-sm last:border-0"><span>{invoice}</span><span>{["Jun 15, 2026", "May 15, 2026", "Apr 15, 2026"][index]}</span><span>EUR {price}</span><span className="text-emerald-400">Paid</span><Button size="sm" variant="outline">PDF</Button></div>)}</Section><div className="grid gap-5 lg:grid-cols-2"><Section title="Usage Overview"><div className="space-y-5"><Progress icon={Brain} label="AI Usage" value="9,200 / 10,000" pct={92} /><Progress icon={Cloud} label="Storage Usage" value="2.4 GB / 50 GB" pct={24} /><Progress icon={Users} label="Employee Usage" value={`${teamCount} / 10`} pct={Math.min(teamCount * 10, 100)} /><Progress icon={Crown} label="Subscription Limits" value="Scale ready" pct={68} /></div></Section><ToggleList title="Subscription Features" items={["AI Assistant", "Website Builder", "Live View", "Inbox", "Accounting", "API Access", "Priority Support"]} /></div></div>;
+  return <div className="space-y-5"><div className="grid gap-5 lg:grid-cols-[1.25fr_0.9fr]"><Section title="Current Plan"><div className="flex items-start gap-6"><IconBox icon={Crown} bg="bg-blue-600/15" color="text-white" /><div className="flex-1"><div className="flex items-center gap-3"><h3 className="text-2xl font-semibold text-white">{planName} Plan</h3><span className="rounded bg-emerald-600/20 px-2 py-1 text-xs text-emerald-400">{status}</span></div><p className="mt-3 text-2xl text-white">EUR {price} <span className="text-sm text-gray-400">/{cycle}</span></p><p className="mt-2 text-sm text-gray-400">Next billing: {nextBilling}</p><div className="mt-6 grid gap-3 sm:grid-cols-2">{["Unlimited AI Assistant", "Inbox", "Calendar", "Accounting", "Website Builder", "10 Employees", "Live View"].map((item) => <p key={item} className="flex items-center gap-2 text-sm text-gray-300"><Check className="h-4 w-4 text-emerald-400" />{item}</p>)}</div><div className="mt-7 grid grid-cols-3 gap-3"><Button onClick={onUpgrade}>Upgrade</Button><Button variant="outline" onClick={onOpenPortal}>Downgrade</Button><Button variant="destructive">Cancel</Button></div></div></div></Section><Section title="Billing Summary"><Row icon={Crown} title="Current Plan" sub={planName} /><Row icon={CreditCard} title={cycle === "annual" ? "Annual" : "Monthly"} sub={`EUR ${price}`} /><Row icon={Calendar} title="Next Payment" sub={nextBilling} /><Row icon={CheckCircle2} title="Status" sub={status} right={<span className="text-emerald-400">{status}</span>} /></Section></div><div className="grid gap-5 lg:grid-cols-2"><Section title="Payment Methods"><Row icon={CreditCard} title="Credit Card" sub="Mastercard **** 2845, expires 08 / 2029" right={<MoreVertical className="h-4 w-4 text-gray-500" />} /><Row icon={Wallet} title="SEPA Payments" sub="Bank transfer mandate ready" right={<Button size="sm" variant="outline">Manage</Button>} /><Button className="mt-4 w-full" onClick={onOpenPortal}>Update Payment Method</Button></Section><Section title="Billing Address"><Row icon={Building2} title="KoraAI GmbH" sub="Unter den Linden 10, 10117 Berlin, Germany" right={null} /><p className="mt-2 text-sm text-gray-400">VAT Number: DE123456789</p><Button className="mt-5 w-full">Edit Address</Button></Section></div><Section title="Billing History">{["INV-2026-001", "INV-2026-002", "INV-2026-003"].map((invoice, index) => <div key={invoice} className="grid grid-cols-[1fr_1fr_1fr_1fr_90px] items-center border-b border-[#1e2d40] py-3 text-sm last:border-0"><span>{invoice}</span><span>{["Jun 15, 2026", "May 15, 2026", "Apr 15, 2026"][index]}</span><span>EUR {price}</span><span className="text-emerald-400">Paid</span><Button size="sm" variant="outline">PDF</Button></div>)}</Section><div className="grid gap-5 lg:grid-cols-2"><Section title="Usage Overview"><div className="space-y-5"><Progress icon={Brain} label="AI Usage" value="9,200 / 10,000" pct={92} /><Progress icon={Cloud} label="Storage Usage" value="2.4 GB / 50 GB" pct={24} /><Progress icon={Users} label="Employee Usage" value={`${teamCount} / 10`} pct={Math.min(teamCount * 10, 100)} /><Progress icon={Crown} label="Subscription Limits" value="Scale ready" pct={68} /></div></Section><ToggleList title="Subscription Features" items={["AI Assistant", "Website Builder", "Live View", "Inbox", "Accounting", "API Access", "Priority Support"]} /></div></div>;
 }
 
 function Integrations() {
@@ -426,7 +433,90 @@ function Security({ onChangePassword }: { onChangePassword?: () => void } = {}) 
 
 function AI({ aiHistoryCount = 0, profile, onSave }: { aiHistoryCount?: number; profile?: ProfileData; onSave?: () => void } = {}) {
   const aiSettings = profile?.settings?.ai || {};
-  return <div className="space-y-5"><div className="grid gap-5 lg:grid-cols-[1.3fr_0.85fr]"><Section title="Assistant Personality" subtitle="Customize tone, style and business language."><div className="grid gap-5 sm:grid-cols-2"><Field label="AI Name" value={aiSettings.name || "Kora"} /><SelectField label="Business Language" value={aiSettings.language || "English (US)"} /></div><h4 className="mb-3 mt-5 text-sm font-medium text-gray-100">Tone of Voice</h4><div className="grid gap-3 sm:grid-cols-4">{["Professional", "Friendly", "Casual", "Luxury"].map((tone) => <button key={tone} type="button" className={`rounded-lg border px-4 py-4 text-sm ${tone === (aiSettings.tone || "Professional") ? "border-blue-500 bg-blue-600/10 text-blue-400" : "border-[#1e2d40] text-gray-300"}`}>{tone}</button>)}</div><h4 className="mb-3 mt-5 text-sm font-medium text-gray-100">Communication Style</h4><div className="grid gap-3 sm:grid-cols-3">{["Short", "Balanced", "Detailed"].map((tone) => <button key={tone} type="button" className={`rounded-lg border px-4 py-4 text-sm ${tone === (aiSettings.responseLength || "Balanced") ? "border-blue-500 bg-blue-600/10 text-blue-400" : "border-[#1e2d40] text-gray-300"}`}>{tone}</button>)}</div><div className="mt-5 flex justify-end"><Button onClick={onSave}>Save Changes</Button></div></Section><Section title="Meet Your AI"><div className="flex items-center gap-6"><div className="flex h-36 w-36 items-center justify-center overflow-hidden"><Image src="/kora.png" alt="Kora" width={144} height={144} unoptimized className="kora-image h-36 w-36 object-contain" /></div><div><h3 className="text-xl font-semibold text-white">Kora AI</h3><p className="mt-2 text-sm text-emerald-400">Online</p></div></div><div className={`${panel} mt-5 p-4 text-sm leading-6 text-gray-200`}>Hi Alex! I learned your business context and I am ready to help manage appointments, customers and daily operations.</div><Progress icon={Brain} label="Business Knowledge" value="92%" pct={92} /></Section></div><div className="grid gap-5 lg:grid-cols-2"><ToggleList title="AI Communication" items={["AI Phone Assistant", "AI WhatsApp Assistant", "Website AI Assistant", "Inbox AI Replies", "Appointment Assistant", "Customer Support Assistant"]} /><ToggleList title="AI Permissions" items={["Read Calendar", "Read Tasks", "Read Contacts", "Read Emails", "Access CRM", "Generate Reports"]} /></div><Section title="Knowledge Base" subtitle="Manage FAQs, internal knowledge and company information."><div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]"><div className="space-y-3">{["Business FAQs", "Internal Knowledge", "Company Information", "Processes", "Services"].map((label) => <Field key={label} label={label} value="Professional, friendly, modern and premium." />)}</div><div className="flex flex-col items-center justify-center text-center"><IconBox icon={FileText} bg="bg-purple-600/20" color="text-purple-300" /><p className="mt-4 max-w-xs text-sm text-gray-400">This information helps Kora provide more accurate and personalized responses.</p></div></div></Section><div className="grid gap-5 lg:grid-cols-2"><ToggleList title="Teach Kora" badge="Future Feature" items={["Train on business information", "Define workflows", "Store business knowledge", "Improve future responses"]} /><ToggleList title="AI Suggestions" items={["Weekly Business Report", "AI Growth Suggestions", "Marketing Ideas", "Sales Opportunities", "Customer Retention Tips"]} /></div><Section title="AI Usage Overview" subtitle="See how Kora AI is helping your business."><div className="grid gap-4 md:grid-cols-4"><Metric icon={MessageCircle} value={String(aiHistoryCount || 4281)} label="AI Requests" color="text-purple-300" /><Metric icon={Clock} value="63" label="Hours Saved" /><Metric icon={Zap} value="1.1" label="Avg. Response" color="text-emerald-300" /><Metric icon={Star} value="98%" label="Satisfaction" color="text-amber-300" /></div></Section></div>;
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-5 lg:grid-cols-[1.3fr_0.85fr]">
+        <Section title="Assistant Personality" subtitle="Customize tone, style and business language.">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="AI Name" value={aiSettings.name || "Kora"} />
+            <SelectField label="Business Language" value={aiSettings.language || "English (US)"} />
+          </div>
+          <h4 className="mb-3 mt-5 text-sm font-medium text-gray-100">Tone of Voice</h4>
+          <div className="grid gap-3 sm:grid-cols-4">
+            {["Professional", "Friendly", "Casual", "Luxury"].map((tone) => (
+              <button key={tone} type="button" className={`rounded-lg border px-4 py-4 text-sm ${tone === (aiSettings.tone || "Professional") ? "border-blue-500 bg-blue-600/10 text-blue-400" : "border-[#1e2d40] text-gray-300"}`}>
+                {tone}
+              </button>
+            ))}
+          </div>
+          <h4 className="mb-3 mt-5 text-sm font-medium text-gray-100">Communication Style</h4>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {["Short", "Balanced", "Detailed"].map((tone) => (
+              <button key={tone} type="button" className={`rounded-lg border px-4 py-4 text-sm ${tone === (aiSettings.responseLength || "Balanced") ? "border-blue-500 bg-blue-600/10 text-blue-400" : "border-[#1e2d40] text-gray-300"}`}>
+                {tone}
+              </button>
+            ))}
+          </div>
+          <div className="mt-5 flex justify-end">
+            <Button onClick={onSave}>Save Changes</Button>
+          </div>
+        </Section>
+
+        <Section title="Meet Your AI">
+          <div className="flex flex-wrap items-center gap-6 sm:flex-nowrap">
+            <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-[radial-gradient(circle,rgba(37,99,235,0.18),transparent_68%)]">
+              <Image
+                src="/kora.png"
+                alt="Kora"
+                width={132}
+                height={132}
+                unoptimized
+                className="kora-image h-32 w-32 object-contain drop-shadow-[0_0_26px_rgba(59,130,246,0.48)]"
+              />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-2xl font-semibold leading-tight text-white">Kora AI</h3>
+              <p className="mt-2 text-sm font-medium text-emerald-400">Online</p>
+            </div>
+          </div>
+          <div className={`${panel} mt-5 p-4 text-sm leading-6 text-gray-200`}>
+            Hi Alex! I learned your business context and I am ready to help manage appointments, customers and daily operations.
+          </div>
+          <div className="mt-4">
+            <Progress icon={Brain} label="Business Knowledge" value="92%" pct={92} />
+          </div>
+        </Section>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <ToggleList title="AI Communication" items={["AI Phone Assistant", "AI WhatsApp Assistant", "Website AI Assistant", "Inbox AI Replies", "Appointment Assistant", "Customer Support Assistant"]} />
+        <ToggleList title="AI Permissions" items={["Read Calendar", "Read Tasks", "Read Contacts", "Read Emails", "Access CRM", "Generate Reports"]} />
+      </div>
+      <Section title="Knowledge Base" subtitle="Manage FAQs, internal knowledge and company information.">
+        <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-3">
+            {["Business FAQs", "Internal Knowledge", "Company Information", "Processes", "Services"].map((label) => <Field key={label} label={label} value="Professional, friendly, modern and premium." />)}
+          </div>
+          <div className="flex flex-col items-center justify-center text-center">
+            <IconBox icon={FileText} bg="bg-purple-600/20" color="text-purple-300" />
+            <p className="mt-4 max-w-xs text-sm text-gray-400">This information helps Kora provide more accurate and personalized responses.</p>
+          </div>
+        </div>
+      </Section>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <ToggleList title="Teach Kora" badge="Future Feature" items={["Train on business information", "Define workflows", "Store business knowledge", "Improve future responses"]} />
+        <ToggleList title="AI Suggestions" items={["Weekly Business Report", "AI Growth Suggestions", "Marketing Ideas", "Sales Opportunities", "Customer Retention Tips"]} />
+      </div>
+      <Section title="AI Usage Overview" subtitle="See how Kora AI is helping your business.">
+        <div className="grid gap-4 md:grid-cols-4">
+          <Metric icon={MessageCircle} value={String(aiHistoryCount || 4281)} label="AI Requests" color="text-purple-300" />
+          <Metric icon={Clock} value="63" label="Hours Saved" />
+          <Metric icon={Zap} value="1.1" label="Avg. Response" color="text-emerald-300" />
+          <Metric icon={Star} value="98%" label="Satisfaction" color="text-amber-300" />
+        </div>
+      </Section>
+    </div>
+  );
 }
 
 function Advanced({ aiHistoryCount = 0 }: { aiHistoryCount?: number } = {}) {
@@ -525,7 +615,11 @@ function QuickActionDialog({
 }
 
 export default function SettingsRedesign() {
-  const [activeTab, setActiveTab] = useState<TabId>("general");
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    if (typeof window === "undefined") return "general";
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    return tabs.some((tab) => tab.id === requestedTab) ? (requestedTab as TabId) : "general";
+  });
   const [quickAction, setQuickAction] = useState<QuickActionId | null>(null);
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
@@ -668,7 +762,16 @@ export default function SettingsRedesign() {
     activeTab === "business" ? <Business profile={profile} onSave={saveProfile} isSaving={updateProfileMutation.isPending} /> :
     activeTab === "team" ? <Team employees={employees} /> :
     activeTab === "notifications" ? <Notifications unreadCount={unreadCount} profile={profile} /> :
-    activeTab === "billing" ? <Billing subscription={subscription} teamCount={employees.length} onOpenPortal={() => portalMutation.mutate()} /> :
+    activeTab === "billing" ? (
+      <Billing
+        subscription={subscription}
+        teamCount={employees.length}
+        onOpenPortal={() => portalMutation.mutate()}
+        onUpgrade={() => {
+          window.location.href = "/subscription";
+        }}
+      />
+    ) :
     activeTab === "integrations" ? <Integrations /> :
     activeTab === "security" ? <Security onChangePassword={changePassword} /> :
     activeTab === "ai" ? <AI aiHistoryCount={aiHistory.length} profile={profile} onSave={saveProfile} /> :
@@ -720,12 +823,12 @@ export default function SettingsRedesign() {
           </div>
         </nav>
 
-        <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto pr-1">
+        <div className="min-h-0 flex-1 overflow-hidden">
           {fullWidth ? (
-            <main className="settings-section-flow">{content}</main>
+            <main className="settings-section-flow scrollbar-blue h-full overflow-y-auto pr-1">{content}</main>
           ) : (
-            <div className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] 2xl:grid-cols-[minmax(0,1fr)_340px] 2xl:gap-4">
-              <main className="settings-section-flow min-w-0">{content}</main>
+            <div className="grid h-full min-h-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] 2xl:grid-cols-[minmax(0,1fr)_340px] 2xl:gap-4">
+              <main className="settings-section-flow scrollbar-blue min-w-0 overflow-y-auto pr-1">{content}</main>
               <RightRail
                 profile={profile}
                 onAskKora={() => askKoraMutation.mutate()}

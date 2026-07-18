@@ -117,7 +117,7 @@ export function Header({ title, subtitle, action }: HeaderProps) {
             <Link href="/subscription">Subscription</Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/settings">Billing</Link>
+            <Link href="/settings?tab=billing">Billing</Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href="/help-center">Help Center</Link>

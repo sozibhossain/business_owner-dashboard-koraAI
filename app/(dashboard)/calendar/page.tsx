@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -17,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { asArray, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  ArrowRight,
   Bell,
   CalendarDays,
   ChevronDown,
@@ -31,10 +29,10 @@ import {
   Palette,
   Plus,
   RefreshCw,
+  Search,
   Settings,
   Settings2,
   ShieldCheck,
-  Sparkles,
   StopCircle,
   User,
   X,
@@ -83,15 +81,6 @@ const APPOINTMENT_TYPE_PRESETS = [
   { name: "Business Review", color: "#f97316", duration: "60 min", visibility: "Owner" },
   { name: "Break", color: "#f59e0b", duration: "30 min", visibility: "Team" },
 ];
-
-const FALLBACK_INSIGHTS = [
-  { title: "Friday is almost fully booked", message: "You have 2 free slots left" },
-  { title: "You have 8 free slots", message: "on Tuesday" },
-  { title: "Wednesday is your", message: "lightest day" },
-];
-
-const INSIGHT_ICONS = ["📅", "🟢", "⭐", "💡", "📈", "🔔"];
-
 const startOfDay = (date: Date) => {
   const next = new Date(date);
   next.setHours(0, 0, 0, 0);
@@ -231,10 +220,10 @@ export default function CalendarPage() {
   const [view, setView] = useState<(typeof VIEWS)[number]>("Week");
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [showInsights] = useState(true);
-  const [showInsightsDialog, setShowInsightsDialog] = useState(false);
   const [showSync, setShowSync] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [showEmployeeSearch, setShowEmployeeSearch] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState("");
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
@@ -255,6 +244,7 @@ export default function CalendarPage() {
     employeeCanEdit: true,
     requireCustomer: true,
   });
+  const employeeSearchRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -269,6 +259,19 @@ export default function CalendarPage() {
     }, 0);
     return () => window.clearTimeout(openTimer);
   }, [router]);
+
+  useEffect(() => {
+    if (!showEmployeeSearch) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!employeeSearchRef.current?.contains(event.target as Node)) {
+        setShowEmployeeSearch(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [showEmployeeSearch]);
 
   const openPersonalAppointmentDialog = (date?: Date | null) => {
     setShowCreateDialog(false);
@@ -341,11 +344,6 @@ export default function CalendarPage() {
         .then((response) => response.data),
   });
 
-  const { data: insightsResponse } = useQuery({
-    queryKey: ["calendar-insights"],
-    queryFn: () => calendarApi.getInsights().then((response) => response.data),
-  });
-
   const { data: blocksResponse } = useQuery({
     queryKey: ["calendar-blocks", rangeStart.toISOString(), rangeEnd.toISOString()],
     queryFn: () =>
@@ -363,7 +361,6 @@ export default function CalendarPage() {
     mutationFn: () => calendarApi.sync(),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["calendar-appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["calendar-insights"] });
       const result = response.data?.data;
       toast.success(
         result
@@ -379,7 +376,6 @@ export default function CalendarPage() {
     mutationFn: (id: string) => calendarApi.deleteEvent(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-blocks"] });
-      queryClient.invalidateQueries({ queryKey: ["calendar-insights"] });
       toast.success("Removed from calendar");
     },
     onError: (error: any) =>
@@ -391,7 +387,6 @@ export default function CalendarPage() {
       appointmentsResponse?.data?.data?.appointments ||
       appointmentsResponse?.data,
   );
-  const insights: any[] = asArray(insightsResponse?.data);
   const employees: any[] = asArray(employeesResponse?.data);
   const blocks: any[] = useMemo(
     () =>
@@ -405,7 +400,7 @@ export default function CalendarPage() {
     if (!employees.length) {
       return [{ id: "me", ids: ["me"], name: "Me", color: TEAM_COLOR_POOL[0], imageUrl: "" }];
     }
-    return employees.slice(0, 6).map((employee, index) => {
+    return employees.map((employee, index) => {
       const employeeId = readId(employee);
       const userId = readId(employee.userId);
       const ids = Array.from(new Set([employeeId, userId].filter(Boolean)));
@@ -418,6 +413,23 @@ export default function CalendarPage() {
       };
     });
   }, [employees]);
+
+  const visibleTeamMembers = useMemo(() => {
+    const selected = teamMembers.filter((member) => selectedEmployees.has(member.id));
+    const starter = teamMembers.slice(0, 6);
+    const merged = [...selected, ...starter];
+    return merged.filter(
+      (member, index) => merged.findIndex((candidate) => candidate.id === member.id) === index,
+    );
+  }, [selectedEmployees, teamMembers]);
+
+  const employeeSearchResults = useMemo(() => {
+    const term = employeeSearch.trim().toLowerCase();
+    const source = term
+      ? teamMembers.filter((member) => member.name.toLowerCase().includes(term))
+      : teamMembers;
+    return source.slice(0, 8);
+  }, [employeeSearch, teamMembers]);
 
   const memberColorMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -564,6 +576,13 @@ export default function CalendarPage() {
     });
   };
 
+  const selectEmployeeCalendar = (id: string) => {
+    setCalendarScope("team");
+    setSelectedEmployees(new Set([id]));
+    setEmployeeSearch("");
+    setShowEmployeeSearch(false);
+  };
+
   const toggleStatus = (value: string) => {
     setSelectedStatuses((current) => {
       const next = new Set(current);
@@ -612,9 +631,9 @@ export default function CalendarPage() {
   const gridTemplateColumns = `60px repeat(${days.length}, minmax(0, 1fr))`;
 
   const renderGridView = () => (
-    <Card>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
+    <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+        <div className="min-h-0 flex-1 overflow-auto">
           <div style={{ minWidth: days.length > 1 ? 860 : undefined }}>
             {/* Day Header */}
             <div className="grid border-b border-[#1e2d40]" style={{ gridTemplateColumns }}>
@@ -790,7 +809,7 @@ export default function CalendarPage() {
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center gap-3 border-t border-[#1e2d40] px-4 py-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-[#1e2d40] px-4 py-2">
           {calendarScope === "team" ? (
             teamMembers.map((member) => (
               <div key={member.id} className="flex items-center gap-1.5">
@@ -826,9 +845,9 @@ export default function CalendarPage() {
   );
 
   const renderMonthView = () => (
-    <Card>
-      <CardContent className="p-0">
-        <div className="grid grid-cols-7 border-b border-[#1e2d40]">
+    <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+        <div className="grid shrink-0 grid-cols-7 border-b border-[#1e2d40]">
           {DAY_LABELS.map((label) => (
             <div key={label} className="px-2 py-2 text-center text-[11px] text-gray-400">
               {label}
@@ -836,13 +855,13 @@ export default function CalendarPage() {
           ))}
         </div>
         {appointmentsLoading ? (
-          <div className="grid grid-cols-7 gap-px p-2">
+          <div className="grid min-h-0 flex-1 grid-cols-7 gap-px overflow-y-auto p-2">
             {Array.from({ length: 35 }).map((_, index) => (
               <Skeleton key={index} className="h-20 w-full" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-7">
+          <div className="grid min-h-0 flex-1 grid-cols-7 overflow-y-auto">
             {dayBuckets.map((bucket, index) => {
               const inMonth = bucket.day.getMonth() === anchorDate.getMonth();
               const isToday = isSameDay(bucket.day, new Date());
@@ -927,8 +946,8 @@ export default function CalendarPage() {
   );
 
   const renderAgendaView = () => (
-    <Card>
-      <CardContent className="space-y-4 p-4">
+    <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+      <CardContent className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         {appointmentsLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 6 }).map((_, index) => (
@@ -1042,7 +1061,7 @@ export default function CalendarPage() {
   };
 
   return (
-    <div>
+    <div className="dashboard-page flex flex-col">
       <Header
         title="Calendar"
         subtitle="Manage appointments across your team. Stay organized, save time."
@@ -1067,9 +1086,9 @@ export default function CalendarPage() {
         }
       />
 
-      <div className="space-y-4 p-3 sm:p-4 lg:p-6">
+      <div className="dashboard-content flex flex-col gap-3 2xl:gap-4">
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
           <div className="flex gap-1 rounded-lg bg-[#0d1a2d] p-1">
             {VIEWS.map((option) => (
               <button
@@ -1133,7 +1152,7 @@ export default function CalendarPage() {
 
         {/* Filters panel */}
         {showFilters ? (
-          <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-[#1e2d40] bg-[#0d1a2d] p-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-4 rounded-2xl border border-[#1e2d40] bg-[#0d1a2d] p-3">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="mr-1 text-[11px] text-gray-500">Status</span>
               {STATUS_FILTER_OPTIONS.map((option) => {
@@ -1189,10 +1208,10 @@ export default function CalendarPage() {
         ) : null}
 
         {/* Main grid */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-          <div className="space-y-4 xl:col-span-3">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden xl:grid-cols-4 2xl:gap-4">
+          <div className="flex min-h-0 flex-col gap-3 overflow-hidden xl:col-span-3 2xl:gap-4">
             {/* Calendar scope */}
-            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#1e2d40] bg-[#0d1a2d] p-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-2xl border border-[#1e2d40] bg-[#0d1a2d] p-2">
               <div className="flex rounded-xl bg-[#071321] p-1">
                 {[
                   { value: "my" as const, label: "My Calendar" },
@@ -1218,12 +1237,13 @@ export default function CalendarPage() {
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1e2d40] text-[10px] text-gray-500">
                     {teamMembers.length}
                   </span>
-                  {teamMembers.map((member) => {
+                  {visibleTeamMembers.map((member) => {
                     const isActive =
                       selectedEmployees.size === 0 || selectedEmployees.has(member.id);
                     return (
                       <button
                         key={member.id}
+                        type="button"
                         onClick={() => toggleMember(member.id)}
                         className={`flex items-center gap-2 rounded-full border px-2 py-1 transition-colors ${
                           isActive
@@ -1251,14 +1271,82 @@ export default function CalendarPage() {
                       </button>
                     );
                   })}
-                  <button
-                    onClick={() => openTeamAppointmentDialog(selectedDate)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1e2d40] text-gray-400 hover:text-white"
-                    aria-label="Create team appointment"
-                    title="Create team appointment"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
+                  <div ref={employeeSearchRef} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmployeeSearch((value) => !value)}
+                      className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                        showEmployeeSearch
+                          ? "bg-blue-600 text-white"
+                          : "bg-[#1e2d40] text-gray-400 hover:text-white"
+                      }`}
+                      aria-label="Search employee calendar"
+                      title="Search employee calendar"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+
+                    {showEmployeeSearch ? (
+                      <div className="absolute left-0 top-9 z-30 w-72 rounded-xl border border-[#1e2d40] bg-[#071321] p-2 shadow-2xl shadow-black/40">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500" />
+                          <Input
+                            autoFocus
+                            value={employeeSearch}
+                            onChange={(event) => setEmployeeSearch(event.target.value)}
+                            placeholder="Search employee..."
+                            className="h-9 border-[#1e2d40] bg-[#0d1a2d] pl-8 text-xs"
+                          />
+                        </div>
+
+                        <div className="mt-2 max-h-64 overflow-y-auto pr-1 scrollbar-blue">
+                          {employeeSearchResults.length > 0 ? (
+                            employeeSearchResults.map((member) => {
+                              const isSelected = selectedEmployees.has(member.id);
+                              return (
+                                <button
+                                  key={member.id}
+                                  type="button"
+                                  onClick={() => selectEmployeeCalendar(member.id)}
+                                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors ${
+                                    isSelected ? "bg-blue-600/20" : "hover:bg-[#0d1a2d]"
+                                  }`}
+                                >
+                                  <Avatar className="h-7 w-7">
+                                    {member.imageUrl ? (
+                                      <AvatarImage src={member.imageUrl} alt={member.name} />
+                                    ) : (
+                                      <AvatarFallback
+                                        className="text-[10px]"
+                                        style={{
+                                          backgroundColor: `${member.color}33`,
+                                          color: member.color,
+                                        }}
+                                      >
+                                        {getInitials(member.name)}
+                                      </AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-gray-200">
+                                    {member.name}
+                                  </span>
+                                  {isSelected ? (
+                                    <span className="rounded-full bg-blue-600/25 px-2 py-0.5 text-[10px] text-blue-200">
+                                      Selected
+                                    </span>
+                                  ) : null}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="px-2 py-5 text-center text-xs text-gray-500">
+                              No employee found.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 </>
               ) : (
                 <>
@@ -1281,73 +1369,23 @@ export default function CalendarPage() {
               )}
             </div>
 
-            {/* Kora Insights */}
-            {showInsights ? (
-              <div className="grid gap-4 rounded-xl border border-[#173050] bg-[radial-gradient(circle_at_5%_50%,rgba(37,99,235,0.22),transparent_14%),linear-gradient(135deg,#071321,#0b1a2f)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:grid-cols-[88px_minmax(0,1fr)] xl:grid-cols-[104px_minmax(0,1fr)]">
-                <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center self-center xl:h-[104px] xl:w-[104px]">
-                  <Image
-                    src="/kora.png"
-                    alt="Kora"
-                    width={104}
-                    height={104}
-                    unoptimized
-                    className="kora-image h-[88px] w-[88px] object-contain drop-shadow-[0_0_24px_rgba(59,130,246,0.45)] xl:h-[104px] xl:w-[104px]"
-                  />
-                </div>
-                <div className="min-w-0 space-y-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-lg font-semibold leading-none text-white">Kora Insights</p>
-                    <button
-                      onClick={() => setShowInsightsDialog(true)}
-                      className="flex w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/70 px-4 py-2.5 text-sm text-gray-200 transition-colors hover:bg-[#1e2d40] sm:w-auto"
-                    >
-                      <span>View all insights</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                  {(insights.length > 0 ? insights : FALLBACK_INSIGHTS)
-                    .slice(0, 3)
-                    .map((insight: any, index: number) => (
-                      <div
-                        key={`${insight.title}-${index}`}
-                        className="flex min-h-[62px] min-w-0 items-center gap-3 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
-                      >
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-600/20 text-base">{INSIGHT_ICONS[index % INSIGHT_ICONS.length]}</span>
-                        <div className="min-w-0 leading-tight">
-                          <p className="truncate text-xs font-medium text-gray-200">{insight.title}</p>
-                          <p className="mt-1 truncate text-[11px] text-gray-500">{insight.message}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowInsightsDialog(true)}
-                  className="hidden"
-                >
-                  <span className="text-sm">View all insights</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
-                  View all insights →
-                </button>
-              </div>
-            ) : null}
-
             {/* Calendar grid / month / agenda */}
-            {view === "Month"
-              ? renderMonthView()
-              : view === "Agenda"
-              ? renderAgendaView()
-              : renderGridView()}
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {view === "Month"
+                ? renderMonthView()
+                : view === "Agenda"
+                ? renderAgendaView()
+                : renderGridView()}
+            </div>
           </div>
 
           {/* RIGHT SIDEBAR */}
-          <div className="space-y-4">
+          <div className="flex min-h-0 flex-col gap-3 overflow-hidden 2xl:gap-4">
             {/* Selected day panel */}
             {selectedDay ? (
-              <Card>
-                <CardContent className="space-y-3 pt-4">
-                  <div className="flex items-start justify-between">
+              <Card className="flex min-h-0 flex-1 flex-col">
+                <CardContent className="flex min-h-0 flex-1 flex-col pt-4">
+                  <div className="flex shrink-0 items-start justify-between">
                     <div>
                       <p className="text-sm font-semibold text-gray-100">
                         {selectedDay.day.toLocaleDateString("en-US", {
@@ -1385,7 +1423,7 @@ export default function CalendarPage() {
                     </div>
                   </div>
 
-                  <div>
+                  <div className="shrink-0">
                     <div className="mb-1 flex justify-between text-[10px]">
                       <span className="text-gray-400">{selectedDay.appointments.length} Appointments</span>
                       <span
@@ -1414,7 +1452,7 @@ export default function CalendarPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                     {selectedDay.appointments.length === 0 ? (
                       <p className="text-xs text-gray-500">No appointments scheduled.</p>
                     ) : (
@@ -1466,7 +1504,7 @@ export default function CalendarPage() {
 
                   <button
                     onClick={viewFullDay}
-                    className="flex w-full items-center justify-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                    className="mt-3 flex w-full shrink-0 items-center justify-center gap-1 text-xs text-blue-400 hover:text-blue-300"
                   >
                     View full day →
                   </button>
@@ -1475,7 +1513,7 @@ export default function CalendarPage() {
             ) : null}
 
             {/* Quick Actions */}
-            <Card>
+            <Card className="shrink-0">
               <CardContent className="pt-4">
                 <p className="mb-3 text-xs font-medium text-gray-300">Quick Actions</p>
                 <div className="grid grid-cols-3 gap-2">
@@ -1526,7 +1564,7 @@ export default function CalendarPage() {
             </Card>
 
             {/* Calendar Sync */}
-            <Card>
+            <Card className="shrink-0">
               <CardContent className="pt-4">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-xs font-medium text-gray-300">Calendar Sync</p>
@@ -1832,28 +1870,6 @@ export default function CalendarPage() {
         }}
         appointmentId={detailsId}
       />
-
-      <Dialog open={showInsightsDialog} onOpenChange={setShowInsightsDialog}>
-        <DialogContent className="max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-blue-400" />
-              Kora Insights
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            {(insights.length > 0 ? insights : FALLBACK_INSIGHTS).map((insight: any, index: number) => (
-              <div key={`${insight.title}-${index}`} className="flex items-start gap-3 rounded-lg bg-[#1e2d40] px-3 py-2.5">
-                <span className="text-base">{INSIGHT_ICONS[index % INSIGHT_ICONS.length]}</span>
-                <div>
-                  <p className="text-sm text-gray-100">{insight.title}</p>
-                  <p className="text-xs text-gray-500">{insight.message}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

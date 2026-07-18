@@ -31,7 +31,6 @@ import {
   Coffee,
   Download,
   KeyRound,
-  MessageCircle,
   MoreHorizontal,
   Plus,
   QrCode,
@@ -68,61 +67,6 @@ const SparkLine = ({ color = "#0ea5e9" }: { color?: string }) => (
       strokeLinecap="round"
     />
   </svg>
-);
-
-const MiniPhone = ({ requestsCount }: { requestsCount: number }) => (
-  <div className="mx-auto w-[196px] rounded-[34px] border-[7px] border-black bg-[#07111f] p-3 shadow-[0_0_34px_rgba(37,99,235,0.22)]">
-    <div className="mx-auto -mt-1 mb-3 h-4 w-20 rounded-b-2xl bg-black" />
-    <div className="mb-5 flex items-start justify-between">
-      <div>
-        <p className="text-[10px] text-gray-300">Good morning,</p>
-        <p className="text-lg font-bold leading-none text-white">Max!</p>
-      </div>
-      <Bell className="h-4 w-4 text-gray-300" />
-    </div>
-    <div className="rounded-xl border border-[#1e2d40] bg-[#0d1a2d] p-3">
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-[10px] font-semibold text-white">Today&apos;s Schedule</p>
-        <p className="text-[9px] text-blue-400">{requestsCount || 3} Appointments</p>
-      </div>
-      {[
-        ["10:00 AM", "Haircut", "John Doe"],
-        ["11:30 AM", "Beard Trim", "Michael Smith"],
-        ["1:00 PM", "Haircut", "David Johnson"],
-      ].map((item) => (
-        <div key={item[0]} className="mb-2 rounded-lg bg-[#07111f] px-2 py-2 last:mb-0">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[9px] font-medium text-gray-200">{item[0]}</p>
-            <div className="min-w-0 text-right">
-              <p className="truncate text-[9px] font-semibold text-gray-200">{item[1]}</p>
-              <p className="truncate text-[8px] text-gray-500">{item[2]}</p>
-            </div>
-          </div>
-        </div>
-      ))}
-      <button className="mt-2 w-full rounded-lg bg-[#101c31] py-2 text-[9px] text-gray-200">
-        View full schedule
-      </button>
-    </div>
-    <div className="mt-4">
-      <p className="mb-2 text-[10px] font-semibold text-white">Quick Actions</p>
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          [MessageCircle, "Request", "bg-purple-500/20 text-purple-300"],
-          [CalendarDays, "Calendar", "bg-blue-500/20 text-blue-300"],
-          [ClipboardCheck, "Tasks", "bg-emerald-500/20 text-emerald-300"],
-          [Bell, "Inbox", "bg-orange-500/20 text-orange-300"],
-        ].map(([Icon, label, tone]) => (
-          <div key={String(label)} className="flex flex-col items-center gap-1">
-            <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${tone}`}>
-              <Icon className="h-3.5 w-3.5" />
-            </div>
-            <span className="text-[8px] text-gray-400">{String(label)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
 );
 
 const QrPattern = () => (
@@ -226,19 +170,6 @@ export default function KoraGoPage() {
       ),
     [appRequests]
   );
-  const accessStatusCounts = useMemo(
-    () =>
-      accessEntries.reduce(
-        (totals: Record<string, number>, entry: any) => {
-          const status = String(entry.status || "disabled").toLowerCase();
-          totals[status] = (totals[status] || 0) + 1;
-          return totals;
-        },
-        { active: 0, invited: 0, disabled: 0, pending_verification: 0 }
-      ),
-    [accessEntries]
-  );
-
   const invitedUserIds = useMemo(
     () => new Set(accessEntries.map((entry: any) => String(entry.old_employee_id?._id || entry.old_employee_id))),
     [accessEntries]
@@ -360,9 +291,9 @@ export default function KoraGoPage() {
           </div>
         </DialogContent>
       </Dialog>
-      <div className="space-y-3 p-3 sm:p-4 lg:p-6">
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_370px]">
-          <div className="min-w-0 space-y-3">
+      <div className="flex min-h-[calc(100vh-104px)] flex-col p-3 sm:p-4 lg:p-6">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_370px]">
+          <div className="flex min-w-0 flex-col gap-3 overflow-hidden">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {overviewLoading
                 ? Array.from({ length: 4 }).map((_, index) => (
@@ -393,9 +324,9 @@ export default function KoraGoPage() {
                   ))}
             </div>
 
-            <div className="grid grid-cols-1 gap-3 2xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-              <Card className="min-w-0 bg-[#091526]">
-                <CardContent className="p-0">
+            <div className="grid shrink-0 grid-cols-1 gap-3 2xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+              <Card className="flex min-h-[300px] min-w-0 flex-col bg-[#091526]">
+                <CardContent className="flex min-h-0 flex-1 flex-col p-0">
                   <div className="flex flex-col gap-3 border-b border-[#1e2d40] p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <h2 className="text-base font-semibold text-white">Access Management</h2>
@@ -410,7 +341,7 @@ export default function KoraGoPage() {
                     </Button>
                   </div>
 
-                  <div className="overflow-x-auto">
+                  <div className="min-h-0 flex-1 overflow-auto">
                     <table className="w-full min-w-[760px] text-left">
                       <thead className="border-b border-[#1e2d40] text-[11px] uppercase text-gray-500">
                         <tr>
@@ -516,13 +447,13 @@ export default function KoraGoPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-[#091526]">
-                <CardContent className="p-0">
+              <Card className="flex min-h-[300px] flex-col bg-[#091526]">
+                <CardContent className="flex min-h-0 flex-1 flex-col p-0">
                   <div className="border-b border-[#1e2d40] p-4">
                     <h2 className="text-base font-semibold text-white">Live App Activity</h2>
                     <p className="mt-1 text-xs text-gray-400">Real-time app actions, refreshed automatically.</p>
                   </div>
-                  <div className="divide-y divide-[#1e2d40] p-4 pt-2">
+                  <div className="min-h-0 flex-1 divide-y divide-[#1e2d40] overflow-auto p-4 pt-2">
                     {activityLoading
                       ? Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="my-3 h-12 w-full" />)
                       : liveActivity.length === 0
@@ -558,8 +489,8 @@ export default function KoraGoPage() {
               </Card>
             </div>
 
-            <Card className="bg-[#091526]">
-              <CardContent className="p-4">
+            <Card className="flex min-h-0 flex-1 flex-col bg-[#091526]">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-base font-semibold text-white">Requests from App</h2>
@@ -582,11 +513,11 @@ export default function KoraGoPage() {
                   ))}
                 </div>
                 {appRequests.length === 0 ? (
-                  <p className="rounded-xl border border-[#1e2d40] bg-[#07111f] py-10 text-center text-sm text-gray-500">
+                  <p className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-[#1e2d40] bg-[#07111f] text-center text-sm text-gray-500">
                     No pending requests from the app.
                   </p>
                 ) : (
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid min-h-0 flex-1 gap-3 overflow-auto md:grid-cols-3">
                     {appRequests.slice(0, 3).map((request: any) => {
                       const requestStatus = String(request.status || "pending").toLowerCase();
                       return (
@@ -641,30 +572,8 @@ export default function KoraGoPage() {
             </Card>
           </div>
 
-          <aside className="space-y-3">
-            <Card className="bg-[#091526]">
-              <CardContent className="p-4">
-                <h2 className="text-base font-semibold text-white">Mobile App Preview</h2>
-                <p className="mt-1 text-xs text-gray-400">See how your team experiences Kora Go.</p>
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  {[
-                    ["Active", accessStatusCounts.active || 0, "text-emerald-400"],
-                    ["Invited", accessStatusCounts.invited || 0, "text-amber-400"],
-                    ["Disabled", accessStatusCounts.disabled || 0, "text-red-400"],
-                  ].map(([label, value, tone]) => (
-                    <div key={String(label)} className="rounded-xl border border-[#1e2d40] bg-[#07111f] p-2 text-center">
-                      <p className={`text-base font-bold ${tone}`}>{value}</p>
-                      <p className="text-[10px] text-gray-500">{label}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-5">
-                  <MiniPhone requestsCount={appRequests.length} />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-[#091526]">
+          <aside className="flex min-h-0 flex-col gap-3 overflow-hidden">
+            <Card className="shrink-0 bg-[#091526]">
               <CardContent className="p-4">
                 <h2 className="text-base font-semibold text-white">App Administration</h2>
                 <p className="mt-1 text-xs text-gray-400">Manage mobile app permissions and notifications.</p>
@@ -688,7 +597,7 @@ export default function KoraGoPage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#091526]">
+            <Card className="shrink-0 bg-[#091526]">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
@@ -714,13 +623,13 @@ export default function KoraGoPage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#091526]">
-              <CardContent className="p-4">
+            <Card className="flex min-h-0 flex-1 flex-col bg-[#091526]">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <BarChart3 className="h-4 w-4 text-blue-400" />
                   <h2 className="text-base font-semibold text-white">Mobile Workforce Analytics</h2>
                 </div>
-                <div className="space-y-2">
+                <div className="min-h-0 flex-1 space-y-2 overflow-auto">
                   {analytics.map((item) => (
                     <div key={item.label} className="rounded-xl border border-[#1e2d40] bg-[#07111f] p-3">
                       <div className="flex items-center justify-between gap-3">

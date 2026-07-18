@@ -394,11 +394,11 @@ export default function RequestsPage() {
     <div className="dashboard-page flex flex-col">
       <Header title="Requests" subtitle="Review and manage all employee requests in one place." />
 
-      <div className="dashboard-content flex flex-col gap-3">
+      <div className="dashboard-content flex flex-col gap-3 overflow-hidden">
         {/* ── Metric cards ── */}
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="min-w-0 space-y-4">
-        <div className="dashboard-kpi-grid">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden">
+        <div className="dashboard-kpi-grid shrink-0">
           {loading
             ? Array.from({ length: 4 }).map((_, i) => (
                 <Card key={i} className="overflow-hidden border-[#173050] bg-gradient-to-br from-[#0c1c31] to-[#071321]">
@@ -440,7 +440,7 @@ export default function RequestsPage() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#173050] bg-[#071321] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-[#173050] bg-[#071321] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
           <div className="flex flex-wrap items-center gap-2">
             {tabs.map((t) => (
               <button
@@ -538,7 +538,7 @@ export default function RequestsPage() {
 
         {/* ── Main grid ── */}
           {/* Request list */}
-          <div className="space-y-3">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-xl border border-[#173050] bg-[#071321]/45 p-3">
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)
             ) : visible.length === 0 ? (
@@ -658,7 +658,7 @@ export default function RequestsPage() {
               })
             )}
             {!loading && visible.length > 0 ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#173050] pt-3">
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[#173050] pt-3">
                 <p className="text-xs text-gray-500">
                   Showing {(Math.min(requestPage, requestPageCount) - 1) * requestPageSize + 1}
                   -{Math.min(Math.min(requestPage, requestPageCount) * requestPageSize, visible.length)} of {visible.length} requests
@@ -686,8 +686,8 @@ export default function RequestsPage() {
           </div>
 
           {/* Request details panel */}
-          <Card className="max-h-[calc(100dvh-7.5rem)] min-h-0 overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] xl:sticky xl:top-20 xl:self-start">
-            <CardContent className="max-h-[calc(100dvh-7.5rem)] overflow-y-auto p-5">
+          <Card className="flex h-full min-h-0 overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <CardContent className="min-h-0 flex-1 overflow-y-auto p-5">
               {!selected ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <FileText className="mb-2 h-10 w-10 text-gray-700" />

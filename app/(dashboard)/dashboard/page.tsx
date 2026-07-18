@@ -3,11 +3,12 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
   accountingApi,
   appointmentsApi,
+  aiDataApi,
   employeesApi,
   userApi,
 } from "@/lib/api";
@@ -35,7 +36,7 @@ import {
   ArrowRight,
   FileSliders,
   SquareCheckBig,
-  MoreVertical,
+  Maximize2,
 } from "lucide-react";
 
 const today = new Date().toISOString().split("T")[0];
@@ -140,6 +141,7 @@ type DashboardAppointment = {
 
 export default function BusinessOwnerDashboard() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [koraInput, setKoraInput] = useState("");
   const [scheduleView, setScheduleView] = useState<"Day" | "Week" | "Month">(
     "Day",
@@ -157,12 +159,6 @@ export default function BusinessOwnerDashboard() {
     reservedHeight: 460,
     min: 2,
     max: 8,
-  });
-  const assistantMessagePageSize = useViewportPageSize({
-    rowHeight: 44,
-    reservedHeight: 520,
-    min: 2,
-    max: 5,
   });
 
   // Time-based greeting must be computed after mount, otherwise the server
@@ -339,18 +335,41 @@ export default function BusinessOwnerDashboard() {
   const getGuestName = (a: DashboardAppointment) =>
     a.customer?.name || a.client?.name || "Customer";
 
+  const sendKoraMutation = useMutation({
+    mutationFn: (message: string) => aiDataApi.create({ message }),
+    onSuccess: (res) => {
+      setKoraMessages((cur) => [
+        ...cur,
+        {
+          role: "assistant",
+          content:
+            res.data?.data?.aireplay ||
+            "I've analyzed your business data. Here are the insights.",
+        },
+      ]);
+      queryClient.invalidateQueries({ queryKey: ["ai-data-history"] });
+    },
+    onError: () => {
+      setKoraMessages((cur) => [
+        ...cur,
+        {
+          role: "assistant",
+          content:
+            "Based on today's schedule, I can help review appointments, employees, reports and business insights once the assistant service is available.",
+        },
+      ]);
+      toast.error("Kora Assistant could not respond right now.");
+    },
+  });
+
   const sendKoraMessage = (text?: string) => {
     const content = (text || koraInput).trim();
-    if (!content) return;
+    if (!content || sendKoraMutation.isPending) return;
     setKoraMessages((cur) => [
       ...cur,
       { role: "user", content },
-      {
-        role: "assistant",
-        content:
-          "I'm checking your live data. Open Calendar, Employees, Requests, or Accounting for full details.",
-      },
     ]);
+    sendKoraMutation.mutate(content);
     setKoraInput("");
   };
 
@@ -535,15 +554,16 @@ export default function BusinessOwnerDashboard() {
                 </div>
                 <button
                   type="button"
+                  onClick={() => router.push("/assistant")}
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-[#0d1a2d] hover:text-gray-200"
-                  aria-label="Assistant menu"
+                  aria-label="Open Kora Assistant full page"
                 >
-                  <MoreVertical className="h-5 w-5" />
+                  <Maximize2 className="h-[18px] w-[18px]" />
                 </button>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid min-h-0 w-full grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(11rem,0.72fr)]">
+            <CardContent className="relative z-10 flex min-h-0 flex-1 flex-col">
+              <div className="grid min-h-0 w-full flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(11rem,0.72fr)]">
                 <div className="flex min-h-0 flex-col overflow-hidden">
                   {showChips ? (
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -558,7 +578,8 @@ export default function BusinessOwnerDashboard() {
                           <button
                             key={chip.label}
                             onClick={() => sendKoraMessage(chip.label)}
-                            className="flex min-h-14 w-full min-w-0 items-center gap-4 rounded-xl border border-[#1e2d40] bg-[#0d1a2d]/90 px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all hover:border-[#79C1EC]/45 hover:bg-[#122238]"
+                            disabled={sendKoraMutation.isPending}
+                            className="flex min-h-14 w-full min-w-0 items-center gap-4 rounded-xl border border-[#1e2d40] bg-[#0d1a2d]/90 px-4 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all hover:border-[#79C1EC]/45 hover:bg-[#122238] disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             <chip.icon className="h-5 w-5 shrink-0 text-gray-200" />
                             <span className="min-w-0 truncate text-sm font-medium text-gray-100">
@@ -569,51 +590,66 @@ export default function BusinessOwnerDashboard() {
                       </div>
                     </div>
                   ) : (
-                    <div className="scrollbar-none mb-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                      {koraMessages
-                        .slice(-assistantMessagePageSize)
-                        .map((msg, i) => (
-                          <div
-                            key={i}
-                            className={`flex ${msg.role === "user" ? "justify-end" : "items-start gap-2"}`}
-                          >
-                            {msg.role === "assistant" && (
-                              <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600/20">
-                                <Image
-                                  src="/kora.png"
-                                  alt=""
-                                  width={24}
-                                  height={24}
-                                  unoptimized
-                                  className="h-full w-full object-cover"
-                                />
-                              </div>
-                            )}
-                            <div
-                              className={`max-w-[85%] rounded-xl px-3 py-2 ${
-                                msg.role === "user"
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-[#1e2d40] text-gray-200"
-                              }`}
-                            >
-                              <p className="text-xs">{msg.content}</p>
+                    <div className="scrollbar-none min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                      {koraMessages.map((msg, i) => (
+                        <div
+                          key={i}
+                          className={`flex ${msg.role === "user" ? "justify-end" : "items-start gap-2"}`}
+                        >
+                          {msg.role === "assistant" && (
+                            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600/20">
+                              <Image
+                                src="/kora.png"
+                                alt=""
+                                width={24}
+                                height={24}
+                                unoptimized
+                                className="h-full w-full object-cover"
+                              />
                             </div>
+                          )}
+                          <div
+                            className={`max-w-[85%] rounded-xl px-3 py-2 ${
+                              msg.role === "user"
+                                ? "bg-blue-600 text-white"
+                                : "bg-[#1e2d40] text-gray-200"
+                            }`}
+                          >
+                            <p className="text-xs">{msg.content}</p>
                           </div>
-                        ))}
+                        </div>
+                      ))}
+                      {sendKoraMutation.isPending && (
+                        <div className="flex items-start gap-2">
+                          <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-600/20">
+                            <Image
+                              src="/kora.png"
+                              alt=""
+                              width={24}
+                              height={24}
+                              unoptimized
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                          <div className="rounded-xl bg-[#1e2d40] px-3 py-2 text-gray-300">
+                            <p className="text-xs">Kora is thinking...</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
                 <div className="relative hidden min-h-0 items-center justify-center lg:flex">
-                  <div className="flex justify-center sm:w-[180px]">
+                  <div className="flex w-[clamp(8rem,12vw,10rem)] justify-center">
                     <Image
                       src="/kora.png"
                       alt="Kora"
-                      width={162}
-                      height={162}
+                      width={150}
+                      height={150}
                       unoptimized
                       priority
-                      className="kora-image h-[162px] w-[162px] object-contain"
+                      className="kora-image h-[clamp(7.5rem,11vw,9.5rem)] w-[clamp(7.5rem,11vw,9.5rem)] object-contain drop-shadow-[0_0_24px_rgba(59,130,246,0.45)]"
                     />
                   </div>
                 </div>
@@ -623,12 +659,14 @@ export default function BusinessOwnerDashboard() {
                   value={koraInput}
                   onChange={(e) => setKoraInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendKoraMessage()}
+                  disabled={sendKoraMutation.isPending}
                   placeholder="Ask Kora anything..."
-                  className="min-h-12 flex-1 rounded-xl border border-[#1e2d40] bg-[#0d1a2d]/90 px-4 text-sm text-gray-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] placeholder:text-gray-500 transition-colors focus:border-blue-500 focus:outline-none"
+                  className="min-h-12 flex-1 rounded-xl border border-[#1e2d40] bg-[#0d1a2d]/90 px-4 text-sm text-gray-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] placeholder:text-gray-500 transition-colors focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                 />
                 <Button
                   size="icon"
                   className="h-12 w-12 shrink-0 rounded-full bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.45)] hover:bg-blue-700"
+                  disabled={!koraInput.trim() || sendKoraMutation.isPending}
                   onClick={() => sendKoraMessage()}
                 >
                   <Send className="h-5 w-5" />

@@ -68,6 +68,15 @@ type PinItem = {
   authorName?: string;
 };
 
+type EmployeeNote = {
+  id: string;
+  employeeIds: string[];
+  body: string;
+  createdAt: string;
+  authorName: string;
+  contactName?: string;
+};
+
 type FilterTab = "all" | "unread" | "groups";
 
 const EMOJI_CATEGORIES = [
@@ -173,6 +182,20 @@ const isVideoFile = (message: any) => {
   return ["mp4", "mov", "avi", "webm", "mkv"].includes(ext);
 };;
 
+const readEmployeeNoteIds = (recipient: any) =>
+  Array.from(
+    new Set(
+      [
+        recipient?.employee?._id,
+        recipient?.employeeId?._id,
+        recipient?.employeeId,
+        recipient?._id,
+      ]
+        .filter(Boolean)
+        .map((value) => String(value)),
+    ),
+  );
+
 function usePersistentState<T>(key: string, fallback: T) {
   const [state, setState] = useState<T>(fallback);
 
@@ -232,6 +255,7 @@ export function InboxWorkspace({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [deleteChatConfirmOpen, setDeleteChatConfirmOpen] = useState(false);
 
@@ -241,6 +265,7 @@ export function InboxWorkspace({
   );
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -578,22 +603,73 @@ export function InboxWorkspace({
     ]);
   };
 
+  const handlePinnedItemClick = (item: PinItem) => {
+    if (item.type !== "message") return;
+    const target = messageRefs.current[item.id];
+    if (!target) {
+      toast.info("Message is not loaded in this conversation.");
+      return;
+    }
+
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedMessageId(item.id);
+    window.setTimeout(() => {
+      setHighlightedMessageId((current) => (current === item.id ? null : current));
+    }, 1800);
+  };
+
+  const unpinItem = (itemId: string) => {
+    setPinnedItems((current) => current.filter((item) => item.id !== itemId));
+  };
+
   const handleSaveNote = () => {
     if (!selectedConversation?._id || !noteDraft.trim()) return;
+    const createdAt = new Date().toISOString();
+    const body = noteDraft.trim();
+    const noteId = `note-${createdAt}`;
     setPinnedItems((current) => [
       {
-        id: `note-${Date.now()}`,
+        id: noteId,
         conversationId: String(selectedConversation._id),
         type: "note",
-        body: noteDraft.trim(),
-        createdAt: new Date().toISOString(),
+        body,
+        createdAt,
         authorName: "You",
       },
       ...current,
     ]);
+
+    const employeeIds = readEmployeeNoteIds(recipient);
+    if (employeeIds.length > 0 && typeof window !== "undefined") {
+      const key = `${dashboardKey}:employee-notes`;
+      let savedNotes: EmployeeNote[] = [];
+      try {
+        savedNotes = JSON.parse(window.localStorage.getItem(key) || "[]");
+      } catch {
+        savedNotes = [];
+      }
+      window.localStorage.setItem(
+        key,
+        JSON.stringify([
+          {
+            id: noteId,
+            employeeIds,
+            body,
+            createdAt,
+            authorName: "You",
+            contactName: recipient?.name,
+          },
+          ...savedNotes,
+        ]),
+      );
+    }
+
     setNoteDraft("");
     setNoteDialogOpen(false);
     toast.success("Note saved");
+    if (employeeIds[0]) {
+      router.push(`/employees?employee=${encodeURIComponent(employeeIds[0])}&tab=notes`);
+    }
   };
 
   const startMeeting = () => {
@@ -608,8 +684,19 @@ export function InboxWorkspace({
     router.push(taskHref);
   };
 
-  const navigateToCalendar = () => {
-    router.push("/calendar");
+  const navigateToEmployeeSchedule = () => {
+    if (!recipient) {
+      toast.info("Select an employee conversation first.");
+      return;
+    }
+
+    const employeeId =
+      recipient.employee?._id ||
+      recipient.employeeId?._id ||
+      recipient.employeeId ||
+      recipient._id;
+
+    router.push(`/employees?employee=${encodeURIComponent(String(employeeId))}&tab=schedule`);
   };
 
   const renderContactPanel = () => (
@@ -638,7 +725,7 @@ export function InboxWorkspace({
             <div className="grid grid-cols-4 gap-2">
               <ActionIcon label="Start Meeting" icon={Video} onClick={startMeeting} />
               <ActionIcon label="Create Task" icon={FileText} onClick={navigateToTask} />
-              <ActionIcon label="Schedule" icon={CalendarDays} onClick={navigateToCalendar} />
+              <ActionIcon label="Schedule" icon={CalendarDays} onClick={navigateToEmployeeSchedule} />
               <ActionIcon label="Add Note" icon={StickyNote} onClick={() => setNoteDialogOpen(true)} />
             </div>
           </div>
@@ -709,10 +796,24 @@ export function InboxWorkspace({
                 <p className="text-xs text-gray-500">No pinned items yet.</p>
               ) : (
                 pinnedForConversation.slice(0, 2).map((item) => (
-                  <div key={item.id} className="rounded-xl border border-[#182233] p-3">
-                    <div className="flex items-start gap-2 mb-1">
-                      <Pin className="h-3 w-3 text-amber-400 mt-0.5 shrink-0" />
-                      <p className="line-clamp-2 text-sm text-gray-100">{item.body}</p>
+                  <div key={item.id} className="cursor-pointer rounded-xl border border-[#182233] p-3 transition-colors hover:border-blue-500/50">
+                    <div className="mb-1 flex items-start gap-2">
+                      <button
+                        type="button"
+                        onClick={() => unpinItem(item.id)}
+                        className="mt-0.5 shrink-0 rounded p-0.5 text-amber-400 transition-colors hover:bg-amber-400/10 hover:text-amber-200"
+                        aria-label="Unpin message"
+                        title="Unpin"
+                      >
+                        <PinOff className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handlePinnedItemClick(item)}
+                        className="min-w-0 flex-1 cursor-pointer text-left"
+                      >
+                        <p className="line-clamp-2 text-sm text-gray-100">{item.body}</p>
+                      </button>
                     </div>
                     <p className="text-[11px] text-gray-500 pl-5">
                       Pinned by {item.authorName || "You"} • {formatDate(item.createdAt)}
@@ -982,14 +1083,21 @@ export function InboxWorkspace({
                     }
 
                     const message = item.data;
+                    const messageId = String(message._id);
                     const isMe = String(message.sender_id) === String(currentUserId);
-                    const isPinned = pinnedForConversation.some((pin) => pin.id === String(message._id));
-                    const isEditing = editingMessageId === String(message._id);
-                    const showMenu = messageMenuId === String(message._id);
+                    const isPinned = pinnedForConversation.some((pin) => pin.id === messageId);
+                    const isEditing = editingMessageId === messageId;
+                    const showMenu = messageMenuId === messageId;
+                    const isHighlighted = highlightedMessageId === messageId;
                     return (
                       <div
                         key={message._id}
-                        className={`group flex ${isMe ? "justify-end" : "items-end gap-2"} py-0.5`}
+                        ref={(node) => {
+                          messageRefs.current[messageId] = node;
+                        }}
+                        className={`group flex rounded-2xl px-1 transition-colors ${
+                          isMe ? "justify-end" : "items-end gap-2"
+                        } py-0.5 ${isHighlighted ? "bg-amber-400/10 ring-1 ring-amber-400/35" : ""}`}
                         onClick={() => { if (showMenu) setMessageMenuId(null); }}
                       >
                         {!isMe ? (
@@ -1009,7 +1117,7 @@ export function InboxWorkspace({
                             <div className="relative hidden group-hover:block">
                               <button
                                 type="button"
-                                onClick={(e) => { e.stopPropagation(); setMessageMenuId(showMenu ? null : String(message._id)); }}
+                                onClick={(e) => { e.stopPropagation(); setMessageMenuId(showMenu ? null : messageId); }}
                                 className="rounded-full border border-[#26354b] bg-[#091321] px-2 py-1 text-[10px] text-gray-400 hover:text-white"
                               >
                                 •••
@@ -1030,7 +1138,7 @@ export function InboxWorkspace({
                                   {isMe && !message.fileUrl ? (
                                     <button
                                       type="button"
-                                      onClick={() => { setEditingMessageId(String(message._id)); setEditDraft(message.content || ""); setMessageMenuId(null); }}
+                                      onClick={() => { setEditingMessageId(messageId); setEditDraft(message.content || ""); setMessageMenuId(null); }}
                                       className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-gray-300 transition-colors hover:bg-[#1e2d40]"
                                     >
                                       <Pencil className="h-3.5 w-3.5 text-blue-400" />
@@ -1040,7 +1148,7 @@ export function InboxWorkspace({
                                   {isMe ? (
                                     <button
                                       type="button"
-                                      onClick={() => { if (selectedId) deleteMessageMutation.mutate({ conversationId: selectedId, messageId: String(message._id) }); setMessageMenuId(null); }}
+                                      onClick={() => { if (selectedId) deleteMessageMutation.mutate({ conversationId: selectedId, messageId }); setMessageMenuId(null); }}
                                       className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-red-400 transition-colors hover:bg-[#1e2d40]"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
@@ -1061,7 +1169,7 @@ export function InboxWorkspace({
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter" && !e.shiftKey && editDraft.trim() && selectedId) {
                                     e.preventDefault();
-                                    editMessageMutation.mutate({ conversationId: selectedId, messageId: String(message._id), content: editDraft.trim() });
+                                    editMessageMutation.mutate({ conversationId: selectedId, messageId, content: editDraft.trim() });
                                   }
                                   if (e.key === "Escape") { setEditingMessageId(null); setEditDraft(""); }
                                 }}
@@ -1069,7 +1177,7 @@ export function InboxWorkspace({
                               />
                               <button
                                 type="button"
-                                onClick={() => { if (editDraft.trim() && selectedId) editMessageMutation.mutate({ conversationId: selectedId, messageId: String(message._id), content: editDraft.trim() }); }}
+                                onClick={() => { if (editDraft.trim() && selectedId) editMessageMutation.mutate({ conversationId: selectedId, messageId, content: editDraft.trim() }); }}
                                 disabled={!editDraft.trim() || editMessageMutation.isPending}
                                 className="shrink-0 rounded-full bg-blue-600 p-1.5 text-white hover:bg-blue-500 disabled:opacity-50"
                               >
@@ -1575,10 +1683,27 @@ export function InboxWorkspace({
               <p className="text-sm text-gray-500">No pinned items yet.</p>
             ) : (
               pinnedForConversation.map((item) => (
-                <div key={item.id} className="rounded-xl border border-[#1e2d40] p-3">
-                  <div className="flex items-start gap-2 mb-1">
-                    <Pin className="h-3 w-3 text-amber-400 mt-0.5 shrink-0" />
-                    <p className="text-sm text-gray-100">{item.body}</p>
+                <div key={item.id} className="cursor-pointer rounded-xl border border-[#1e2d40] p-3 transition-colors hover:border-blue-500/50">
+                  <div className="mb-1 flex items-start gap-2">
+                    <button
+                      type="button"
+                      onClick={() => unpinItem(item.id)}
+                      className="mt-0.5 shrink-0 rounded p-0.5 text-amber-400 transition-colors hover:bg-amber-400/10 hover:text-amber-200"
+                      aria-label="Unpin item"
+                      title="Unpin"
+                    >
+                      <PinOff className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handlePinnedItemClick(item);
+                        if (item.type === "message") setPinnedDialogOpen(false);
+                      }}
+                      className="min-w-0 flex-1 cursor-pointer text-left"
+                    >
+                      <p className="text-sm text-gray-100">{item.body}</p>
+                    </button>
                   </div>
                   <p className="text-xs text-gray-500 pl-5">
                     {item.type === "note" ? "Note" : "Pinned"} by {item.authorName || "You"} • {formatDate(item.createdAt)}

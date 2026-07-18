@@ -37,14 +37,11 @@ import {
   ArrowRight,
   Ban,
   CalendarDays,
-  CalendarPlus,
   CalendarRange,
   ChevronLeft,
   ChevronRight,
-  ClipboardList,
   Clock3,
   Coffee,
-  Copy,
   Filter,
   Move,
   MoreVertical,
@@ -93,6 +90,21 @@ const toDateKey = (date: Date) => {
 
 const buildWeek = (weekStart: Date) =>
   Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+
+const startOfMonth = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), 1);
+
+const buildMonthGrid = (monthStart: Date) => {
+  const gridStart = new Date(monthStart);
+  gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+  gridStart.setHours(0, 0, 0, 0);
+  return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+};
+
+const formatMonthLabel = (date: Date) =>
+  date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+const MONTH_DAY_SLOT_CAPACITY = 9;
 
 const formatWeekRange = (days: Date[]) => {
   if (days.length === 0) return "";
@@ -220,10 +232,35 @@ const guestPhone = (appointment: any) =>
 
 const isActiveAppt = (appointment: any) => appointment?.status !== "cancelled";
 
+const appointmentEmployeeId = (appointment: any) =>
+  String(
+    appointment?.employee?._id ||
+      appointment?.employee?.userId?._id ||
+      appointment?.employees_id?._id ||
+      appointment?.employeeId ||
+      appointment?.employee ||
+      ""
+  );
+
+const appointmentDateKey = (appointment: any) => {
+  const raw = appointment?.appointmentDate || appointment?.date || appointment?.startedAt;
+  if (!raw) return "";
+  if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  return toDateKey(new Date(raw));
+};
+
+const extractAppointments = (payload: any) =>
+  asArray(
+    payload?.data?.appointments ||
+      payload?.appointments ||
+      payload?.data ||
+      payload
+  );
+
 const groupByEmployee = (items: any[]) => {
   const map: Record<string, any[]> = {};
   items.forEach((item) => {
-    const empId = String(item?.employee?._id || "");
+    const empId = appointmentEmployeeId(item);
     if (!empId) return;
     (map[empId] = map[empId] || []).push(item);
   });
@@ -413,18 +450,17 @@ export default function TasksPage() {
     min: 2,
     max: 5,
   });
-  const selectedAppointmentsPageSize = useViewportPageSize({
-    rowHeight: 44,
-    reservedHeight: 520,
-    min: 2,
-    max: 8,
-  });
-
   const weekDays = useMemo(() => buildWeek(weekStart), [weekStart]);
   const prevWeekDays = useMemo(
     () => buildWeek(addDays(weekStart, -7)),
     [weekStart]
   );
+  const selectedDateObj = useMemo(() => {
+    const parsed = new Date(`${selectedKey}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }, [selectedKey]);
+  const monthStart = useMemo(() => startOfMonth(selectedDateObj), [selectedDateObj]);
+  const monthDays = useMemo(() => buildMonthGrid(monthStart), [monthStart]);
 
   /* ── Queries ── */
 
@@ -438,7 +474,7 @@ export default function TasksPage() {
       days.map((day) =>
         appointmentsApi
           .getAll({ date: toDateKey(day), limit: 200 })
-          .then((r) => ({ date: toDateKey(day), items: asArray(r.data?.data) }))
+          .then((r) => ({ date: toDateKey(day), items: extractAppointments(r.data) }))
           .catch(() => ({ date: toDateKey(day), items: [] as any[] }))
       )
     );
@@ -451,6 +487,12 @@ export default function TasksPage() {
   const { data: prevWeekResponse } = useQuery({
     queryKey: ["tasks-week-prev", toDateKey(weekStart)],
     queryFn: () => fetchWeek(prevWeekDays),
+  });
+
+  const { data: monthResponse, isLoading: monthLoading } = useQuery({
+    queryKey: ["tasks-month", toDateKey(monthStart)],
+    queryFn: () => fetchWeek(monthDays),
+    enabled: view === "Month",
   });
 
   const { data: customers = [] } = useQuery({
@@ -474,8 +516,11 @@ export default function TasksPage() {
     asArray(weekResponse).forEach((entry: any) => {
       map[entry.date] = entry.items || [];
     });
+    asArray(monthResponse).forEach((entry: any) => {
+      map[entry.date] = entry.items || [];
+    });
     return map;
-  }, [weekResponse]);
+  }, [weekResponse, monthResponse]);
 
   const prevAppointmentsByDay = useMemo(() => {
     const map: Record<string, any[]> = {};
@@ -493,7 +538,7 @@ export default function TasksPage() {
       const cells = weekDays.map((day) => {
         const key = toDateKey(day);
         const dayItems = (appointmentsByDay[key] || []).filter(
-          (a: any) => String(a?.employee?._id) === empId
+          (a: any) => appointmentEmployeeId(a) === empId
         );
         return {
           date: key,
@@ -562,7 +607,7 @@ export default function TasksPage() {
       for (const employee of employees) {
         const empId = String(employee?.userId?._id || "");
         const items = (appointmentsByDay[key] || []).filter(
-          (a: any) => String(a?.employee?._id) === empId
+          (a: any) => appointmentEmployeeId(a) === empId
         );
         if (employeeCapacity(employee, day, items).status === "overbooked") {
           overEntry = {
@@ -644,6 +689,7 @@ export default function TasksPage() {
   /* ── Modals ── */
 
   const [dayDetail, setDayDetail] = useState<{ employee: any; dateKey: string } | null>(null);
+  const [fullDayOpen, setFullDayOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({
     customer: "",
@@ -690,10 +736,40 @@ export default function TasksPage() {
 
   const createMutation = useMutation({
     mutationFn: (payload: any) => appointmentsApi.create(payload),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      const created = response?.data?.data || response?.data?.appointment || response?.data;
+      const createdKey = appointmentDateKey(created);
+      if (created?._id && createdKey) {
+        queryClient.setQueryData(["tasks-week", toDateKey(weekStart)], (current: any) =>
+          asArray(current).map((entry: any) => {
+            if (entry?.date !== createdKey) return entry;
+            const existing = asArray(entry.items);
+            if (existing.some((item: any) => String(item?._id) === String(created._id))) {
+              return entry;
+            }
+            return { ...entry, items: [...existing, created] };
+          })
+        );
+        const createdMonthStart = startOfMonth(new Date(`${createdKey}T00:00:00`));
+        queryClient.setQueryData(["tasks-month", toDateKey(createdMonthStart)], (current: any) =>
+          asArray(current).map((entry: any) => {
+            if (entry?.date !== createdKey) return entry;
+            const existing = asArray(entry.items);
+            if (existing.some((item: any) => String(item?._id) === String(created._id))) {
+              return entry;
+            }
+            return { ...entry, items: [...existing, created] };
+          })
+        );
+      }
       toast.success("Appointment created");
       setAddOpen(false);
       queryClient.invalidateQueries({ queryKey: ["tasks-week"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks-month"] });
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["live-view-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-appointments"] });
     },
     onError: (error: any) => {
       toast.error(
@@ -722,7 +798,7 @@ export default function TasksPage() {
     });
   };
 
-  const isLoading = employeesLoading || weekLoading;
+  const isLoading = employeesLoading || weekLoading || (view === "Month" && monthLoading);
 
   /* ── Metric cards definition ── */
 
@@ -783,33 +859,6 @@ export default function TasksPage() {
     },
   ];
 
-  const quickActions = [
-    {
-      label: "Add\nAppointment",
-      icon: CalendarPlus,
-      color: "bg-blue-600/20 text-blue-400 border-blue-600/30",
-      onClick: () => openAddAppointment(),
-    },
-    {
-      label: "Add\nBlock",
-      icon: Ban,
-      color: "bg-amber-600/20 text-amber-400 border-amber-600/30",
-      onClick: () => toast.info("Time blocking will be available soon"),
-    },
-    {
-      label: "Assign\nTask",
-      icon: ClipboardList,
-      color: "bg-purple-600/20 text-purple-400 border-purple-600/30",
-      onClick: () => toast.info("Task assignment will be available soon"),
-    },
-    {
-      label: "Copy\nWeek",
-      icon: Copy,
-      color: "bg-emerald-600/20 text-emerald-400 border-emerald-600/30",
-      onClick: () => toast.info("Copy week will be available soon"),
-    },
-  ];
-
   /* ── Day-detail derived data ── */
 
   const detailEmployee = dayDetail?.employee;
@@ -821,7 +870,7 @@ export default function TasksPage() {
     if (!dayDetail || !detailEmployee) return [];
     const empId = String(detailEmployee?.userId?._id || "");
     return (appointmentsByDay[dayDetail.dateKey] || [])
-      .filter((a: any) => String(a?.employee?._id) === empId && isActiveAppt(a))
+      .filter((a: any) => appointmentEmployeeId(a) === empId && isActiveAppt(a))
       .sort((a: any, b: any) => timeToMin(a.startTime) - timeToMin(b.startTime));
   }, [dayDetail, detailEmployee, appointmentsByDay]);
   const detailInfo =
@@ -830,7 +879,7 @@ export default function TasksPage() {
           detailEmployee,
           detailDateObj,
           (appointmentsByDay[dayDetail.dateKey] || []).filter(
-            (a: any) => String(a?.employee?._id) === String(detailEmployee?.userId?._id)
+            (a: any) => appointmentEmployeeId(a) === String(detailEmployee?.userId?._id)
           )
         )
       : null;
@@ -846,7 +895,7 @@ export default function TasksPage() {
 
       <div className="dashboard-content flex flex-col gap-3 bg-[radial-gradient(circle_at_47%_0%,rgba(37,99,235,0.18),transparent_28%),linear-gradient(180deg,#050d1a_0%,#06101e_42%,#050b16_100%)]">
         {/* ── Weekly Performance Overview ── */}
-        <div className="dashboard-kpi-grid">
+        <div className="dashboard-kpi-grid shrink-0">
           {isLoading
             ? Array.from({ length: 5 }).map((_, i) => (
                 <Card key={i} className="overflow-hidden border-[#173050] bg-gradient-to-br from-[#0c1c31] to-[#071321]">
@@ -902,7 +951,7 @@ export default function TasksPage() {
         </div>
 
         {/* ── Kora Insights ── */}
-        <Card className="dashboard-secondary overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_4%_50%,rgba(37,99,235,0.18),transparent_12%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <Card className="dashboard-secondary shrink-0 overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_4%_50%,rgba(37,99,235,0.18),transparent_12%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           <CardContent className="p-3">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center">
@@ -952,7 +1001,7 @@ export default function TasksPage() {
           </CardContent>
         </Card>
         {/* ── Main grid ── */}
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
           {/* Left: toolbar + capacity planner */}
           <div className="min-h-0">
             <Card className="flex h-full min-h-0 flex-col overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -1034,18 +1083,13 @@ export default function TasksPage() {
                   />
                 ) : view === "Month" ? (
                   /* ── Month placeholder ── */
-                  <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-                    <CalendarPlus2 className="h-10 w-10 text-gray-700" />
-                    <div>
-                      <p className="text-sm text-gray-300">Month view</p>
-                      <p className="text-xs text-gray-500">
-                        Open the full calendar for a complete month overview.
-                      </p>
-                    </div>
-                    <Button asChild size="sm" variant="outline">
-                      <a href="/calendar">Open Calendar</a>
-                    </Button>
-                  </div>
+                  <MonthView
+                    monthStart={monthStart}
+                    monthDays={monthDays}
+                    selectedKey={selectedKey}
+                    appointmentsByDay={appointmentsByDay}
+                    onSelect={(key) => setSelectedKey(key)}
+                  />
                 ) : (
                   /* ── Week capacity grid ── */
                   <div className="flex min-h-0 flex-1 flex-col">
@@ -1208,11 +1252,11 @@ export default function TasksPage() {
           </div>
 
           {/* Right: daily schedule + quick actions */}
-          <div className="min-h-0 space-y-3">
+          <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
             {/* Daily Schedule Overview */}
-            <Card className="overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
+            <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-[#173050] bg-[linear-gradient(135deg,#071321,#0a182a)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+                <div className="flex shrink-0 items-center justify-between">
                   <p className="text-lg font-semibold text-white">
                     {selectedDate.toLocaleDateString("en-US", {
                       weekday: "long",
@@ -1231,7 +1275,7 @@ export default function TasksPage() {
                   })()}
                 </div>
 
-                <div className="mt-3 flex items-center justify-between">
+                <div className="mt-3 flex shrink-0 items-center justify-between">
                   <p className="text-xs text-gray-400">
                     {selectedAppointments.length} Appointment
                     {selectedAppointments.length === 1 ? "" : "s"}
@@ -1244,7 +1288,7 @@ export default function TasksPage() {
                     {Math.round(selectedSummary.ratio * 100)}% of capacity
                   </p>
                 </div>
-                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#1e2d40]">
+                <div className="mt-2 h-2 w-full shrink-0 overflow-hidden rounded-full bg-[#1e2d40]">
                   <div
                     className={`h-full rounded-full ${
                       selectedSummary.ratio > 1
@@ -1257,14 +1301,14 @@ export default function TasksPage() {
                   />
                 </div>
 
-                <div className="mt-4 space-y-1 pr-1">
+                <div className="scrollbar-blue mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto pr-3">
                   {selectedAppointments.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 text-center">
                       <CalendarDays className="mb-2 h-8 w-8 text-gray-700" />
                       <p className="text-xs text-gray-500">No appointments this day.</p>
                     </div>
                   ) : (
-                    selectedAppointments.slice(0, selectedAppointmentsPageSize).map((appt) => {
+                    selectedAppointments.map((appt) => {
                       const meta = apptStatusMeta(appt.status);
                       return (
                         <div
@@ -1302,11 +1346,8 @@ export default function TasksPage() {
                 </div>
 
                 <button
-                  onClick={() => {
-                    const todayEmp = employees[0];
-                    if (todayEmp) setDayDetail({ employee: todayEmp, dateKey: selectedKey });
-                  }}
-                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#1e2d40] py-2 text-xs text-blue-400 transition-colors hover:bg-[#1e2d40]"
+                  onClick={() => setFullDayOpen(true)}
+                  className="mt-3 flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#1e2d40] py-2 text-xs text-blue-400 transition-colors hover:bg-[#1e2d40]"
                 >
                   View full day <ArrowRight className="h-3.5 w-3.5" />
                 </button>
@@ -1342,6 +1383,71 @@ export default function TasksPage() {
       </div>
 
       {/* ── Day Detail modal ── */}
+      <Dialog open={fullDayOpen} onOpenChange={setFullDayOpen}>
+        <DialogContent className="max-w-3xl overflow-hidden p-0">
+          <DialogHeader className="border-b border-[#1e2d40] p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600/20">
+                <CalendarDays className="h-5 w-5 text-blue-400" />
+              </div>
+              <div>
+                <DialogTitle>
+                  {selectedDate.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </DialogTitle>
+                <p className="mt-1 text-xs text-gray-500">
+                  {selectedAppointments.length} appointment{selectedAppointments.length === 1 ? "" : "s"} ·{" "}
+                  {Math.round(selectedSummary.ratio * 100)}% of capacity
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="scrollbar-blue max-h-[58vh] overflow-y-auto p-5 pr-3">
+            {selectedAppointments.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <CalendarDays className="mb-2 h-9 w-9 text-gray-700" />
+                <p className="text-sm text-gray-400">No appointments this day.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {selectedAppointments.map((appt: any) => {
+                  const meta = apptStatusMeta(appt.status);
+                  return (
+                    <div
+                      key={appt._id}
+                      className="grid gap-3 rounded-xl border border-[#1e2d40] bg-[#0d1a2d]/70 p-3 sm:grid-cols-[84px_minmax(0,1fr)_minmax(0,1fr)_auto]"
+                    >
+                      <div className="text-xs text-gray-400">
+                        <p>{appt.startTime}</p>
+                        <p className="text-[10px] text-gray-600">to {appt.endTime}</p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-gray-100">{guestName(appt)}</p>
+                        {guestPhone(appt) ? (
+                          <p className="truncate text-[11px] text-gray-500">{guestPhone(appt)}</p>
+                        ) : null}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-xs text-gray-300">{appt.service || "Appointment"}</p>
+                        <p className="truncate text-[11px] text-gray-500">{appt?.employee?.name || "Employee"}</p>
+                      </div>
+                      <span className={`h-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${meta.cls}`}>
+                        {meta.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!dayDetail} onOpenChange={(open) => !open && setDayDetail(null)}>
         <DialogContent className="max-w-2xl p-0">
           {dayDetail && detailDateObj && (
@@ -1394,7 +1500,7 @@ export default function TasksPage() {
                 </div>
               </DialogHeader>
 
-              <div className="max-h-[50vh] overflow-y-auto p-5">
+              <div className="scrollbar-blue max-h-[50vh] overflow-y-auto p-5 pr-3">
                 {detailAppointments.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <CalendarDays className="mb-2 h-8 w-8 text-gray-700" />
@@ -1673,7 +1779,7 @@ function ListView({
 
   if (rows.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-12 text-center">
         <CalendarDays className="mb-2 h-9 w-9 text-gray-700" />
         <p className="text-sm text-gray-400">No appointments this week.</p>
       </div>
@@ -1681,7 +1787,7 @@ function ListView({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="scrollbar-blue min-h-0 flex-1 space-y-4 overflow-y-auto p-4 pr-3">
       {rows.map(({ day, key, items }) => (
         <div key={key}>
           <button
@@ -1728,6 +1834,105 @@ function ListView({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function MonthView({
+  monthStart,
+  monthDays,
+  selectedKey,
+  appointmentsByDay,
+  onSelect,
+}: {
+  monthStart: Date;
+  monthDays: Date[];
+  selectedKey: string;
+  appointmentsByDay: Record<string, any[]>;
+  onSelect: (key: string) => void;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col bg-[radial-gradient(circle_at_50%_0%,rgba(37,99,235,0.08),transparent_34%)]">
+      <div className="flex shrink-0 items-center justify-between border-b border-[#1e2d40] px-4 py-2.5">
+        <div>
+          <p className="text-sm font-semibold text-gray-100">{formatMonthLabel(monthStart)}</p>
+          <p className="mt-0.5 text-[11px] text-gray-500">Click a day to preview appointments</p>
+        </div>
+        <div className="flex items-center gap-3 text-[11px] text-gray-500">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-blue-400" />
+            Appointment
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-blue-600" />
+            Selected
+          </span>
+        </div>
+      </div>
+
+      <div className="grid shrink-0 grid-cols-7 border-b border-[#1e2d40] bg-[#071321]/70 text-center">
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+          <div key={day} className="px-2 py-1.5 text-[11px] font-medium text-gray-500">
+            {day}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6 overflow-hidden">
+        {monthDays.map((day) => {
+          const key = toDateKey(day);
+          const items = (appointmentsByDay[key] || [])
+            .filter(isActiveAppt)
+            .sort((a: any, b: any) => timeToMin(a.startTime) - timeToMin(b.startTime));
+          const isCurrentMonth = day.getMonth() === monthStart.getMonth();
+          const isSelected = key === selectedKey;
+          const count = items.length;
+          const isOverbooked = count > MONTH_DAY_SLOT_CAPACITY;
+          const fillPct = Math.min(100, Math.round((count / MONTH_DAY_SLOT_CAPACITY) * 100));
+          const progressColor = isOverbooked
+            ? "bg-red-500"
+            : fillPct >= 75
+              ? "bg-amber-500"
+              : "bg-blue-500";
+
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onSelect(key)}
+              className={`min-h-0 overflow-hidden border-b border-r border-[#1e2d40] p-2 text-left transition-colors hover:bg-[#0d1a2d] ${
+                isSelected ? "bg-blue-600/18 ring-1 ring-inset ring-blue-500/80" : ""
+              } ${isCurrentMonth ? "bg-[#081526]/72" : "bg-[#07111f]/55 text-gray-600"}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className={`text-xs font-medium ${isCurrentMonth ? "text-gray-300" : "text-gray-600"}`}>
+                  {day.getDate()}
+                </span>
+                {count > 0 ? (
+                  <span
+                    className={`rounded-full border px-1.5 py-0.5 text-[10px] leading-none ${
+                      isOverbooked
+                        ? "border-red-400/40 bg-red-500/20 text-red-300"
+                        : "border-blue-500/30 bg-blue-600/20 text-blue-300"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                ) : null}
+              </div>
+
+              {count > 0 ? (
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#1e2d40]">
+                  <div
+                    className={`h-full rounded-full ${progressColor}`}
+                    style={{ width: `${fillPct}%` }}
+                  />
+                </div>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

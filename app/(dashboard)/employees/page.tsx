@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Image from "next/image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { appointmentsApi, employeesApi } from "@/lib/api";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +29,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Clock,
   LayoutGrid,
   LogIn,
   LogOut,
@@ -36,6 +38,7 @@ import {
   Plus,
   Search,
   Star,
+  StickyNote,
   Trash2,
   TrendingUp,
   UserMinus,
@@ -98,6 +101,12 @@ const APPT_BADGE: Record<string, { label: string; cls: string }> = {
 };
 const apptBadge = (s?: string) => APPT_BADGE[s || "upcoming"] || APPT_BADGE.upcoming;
 
+type EmployeePanelTab = "overview" | "schedule" | "performance" | "notes" | "settings";
+const EMPLOYEE_PANEL_TABS: EmployeePanelTab[] = ["overview", "schedule", "performance", "notes", "settings"];
+const isEmployeePanelTab = (value: string | null): value is EmployeePanelTab =>
+  Boolean(value && EMPLOYEE_PANEL_TABS.includes(value as EmployeePanelTab));
+const EMPLOYEE_NOTES_KEY = "business_owner:employee-notes";
+
 const SparkLine = ({ seed, color }: { seed: number; color: string }) => {
   const pts = Array.from({ length: 12 }, (_, i) => {
     const n = ((seed * 9301 + i * 49297) % 233280) / 233280;
@@ -116,7 +125,16 @@ const empName = (e: any) => e?.userId?.name || "Employee";
 /* ─────────────────────────  Page  ───────────────────────── */
 
 export default function EmployeesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#050b14]" />}>
+      <EmployeesPageContent />
+    </Suspense>
+  );
+}
+
+function EmployeesPageContent() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const todayKey = toDateKey(new Date());
 
   const [search, setSearch] = useState("");
@@ -128,13 +146,16 @@ export default function EmployeesPage() {
   const [view, setView] = useState<"cards" | "schedule">("cards");
   const [employeePage, setEmployeePage] = useState(1);
   const employeePageSize = useViewportPageSize({
-    rowHeight: 96,
-    reservedHeight: 430,
-    min: 4,
-    max: 4,
+    rowHeight: 86,
+    reservedHeight: 360,
+    min: 8,
+    max: 8,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "schedule" | "performance" | "settings">("overview");
+  const [tab, setTab] = useState<EmployeePanelTab>(() => {
+    const requestedTab = searchParams.get("tab");
+    return isEmployeePanelTab(requestedTab) ? requestedTab : "overview";
+  });
 
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -181,10 +202,23 @@ export default function EmployeesPage() {
     return map;
   }, [todayAppts]);
 
-  const selected = useMemo(
-    () => employees.find((e) => e._id === selectedId) || employees[0] || null,
-    [employees, selectedId]
-  );
+  const requestedEmployee = searchParams.get("employee");
+  const selected = useMemo(() => {
+    const explicit = selectedId ? employees.find((e) => String(e._id) === String(selectedId)) : null;
+    if (explicit) return explicit;
+
+    if (requestedEmployee) {
+      const fromUrl = employees.find((employee) => {
+        const employeeId = String(employee?._id || "");
+        const userId = String(employee?.userId?._id || employee?.userId || "");
+        return employeeId === requestedEmployee || userId === requestedEmployee;
+      });
+
+      if (fromUrl) return fromUrl;
+    }
+
+    return employees[0] || null;
+  }, [employees, requestedEmployee, selectedId]);
   const selectedEmployeeId = selected?._id || null;
 
   /* selected employee detail queries */
@@ -373,26 +407,26 @@ export default function EmployeesPage() {
 
       <div className="dashboard-content flex flex-col gap-3">
         {/* ── Metric cards ── */}
-        <div className={`grid grid-cols-1 gap-5 ${selected ? "xl:grid-cols-[minmax(0,1fr)_430px]" : ""}`}>
-          <div className="min-w-0 space-y-5">
-        <div className="dashboard-kpi-grid">
+        <div className={`grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden ${selected ? "xl:grid-cols-[minmax(0,1fr)_430px]" : ""}`}>
+          <div className="flex min-w-0 min-h-0 flex-col gap-3 overflow-hidden">
+        <div className="dashboard-kpi-grid shrink-0">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (
                 <Card key={i}><CardContent className="p-4"><Skeleton className="h-14 w-full" /></CardContent></Card>
               ))
             : metricCards.map((m) => (
                 <Card key={m.label} className="overflow-hidden border-[#173050] bg-gradient-to-br from-[#0c1c31] to-[#071321] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                  <CardContent className="p-4">
-                    <div className="flex min-h-[94px] items-start justify-between gap-3">
+                  <CardContent className="p-3">
+                    <div className="flex min-h-[72px] items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="mb-2 flex items-center gap-2">
-                          <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${m.color} shadow-[0_0_24px_rgba(37,99,235,0.28)]`}>
-                            <m.icon className="h-5 w-5 text-white" />
+                        <div className="mb-1.5 flex items-center gap-2">
+                          <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${m.color} shadow-[0_0_20px_rgba(37,99,235,0.24)]`}>
+                            <m.icon className="h-[18px] w-[18px] text-white" />
                           </div>
                           <p className="truncate text-xs font-medium text-gray-300">{m.label}</p>
                         </div>
                         <p className="dashboard-fluid-value font-semibold text-white">{m.value}</p>
-                        <p className="mt-3 text-[11px] text-emerald-400">{m.helper}</p>
+                        <p className="mt-1.5 text-[11px] text-emerald-400">{m.helper}</p>
                       </div>
                       <SparkLine seed={m.seed} color={m.spark} />
                     </div>
@@ -402,22 +436,22 @@ export default function EmployeesPage() {
         </div>
 
         {/* ── Kora Insights ── */}
-        <Card className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_4%_50%,rgba(37,99,235,0.24),transparent_13%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-              <div className="flex h-[104px] w-[104px] shrink-0 items-center justify-center">
+        <Card className="shrink-0 overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_4%_50%,rgba(37,99,235,0.24),transparent_13%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <CardContent className="p-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center">
                 <Image
                   src="/kora.png"
                   alt="Kora"
-                  width={104}
-                  height={104}
+                  width={72}
+                  height={72}
                   unoptimized
-                  className="kora-image h-[104px] w-[104px] object-contain drop-shadow-[0_0_24px_rgba(59,130,246,0.45)]"
+                  className="kora-image h-[72px] w-[72px] object-contain drop-shadow-[0_0_20px_rgba(59,130,246,0.4)]"
                 />
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="mb-3 text-lg font-semibold leading-none text-white">Kora Insights</p>
+                <p className="mb-2 text-base font-semibold leading-none text-white">Kora Insights</p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {insights.length ? (
                     insights.map((ins, i) => (
@@ -425,10 +459,10 @@ export default function EmployeesPage() {
                         key={i}
                         type="button"
                         onClick={ins.onSelect}
-                        className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-3 py-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:bg-[#122238]"
+                        className="flex min-h-[50px] items-center gap-3 rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/85 px-3 py-2 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:bg-[#122238]"
                       >
-                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${ins.tint}`}>
-                        <ins.icon className="h-4 w-4" />
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${ins.tint}`}>
+                        <ins.icon className="h-4 w-4 text-white" />
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-xs font-medium text-gray-200">{ins.title}</p>
@@ -452,7 +486,7 @@ export default function EmployeesPage() {
                   setStatusFilter("all");
                   setEmployeePage(1);
                 }}
-                className="flex shrink-0 items-center gap-2 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/70 px-4 py-2.5 text-sm text-gray-200 transition-colors hover:bg-[#1e2d40] lg:self-end"
+                className="flex shrink-0 items-center gap-2 self-start whitespace-nowrap rounded-lg border border-[#1e2d40] bg-[#0d1a2d]/70 px-3 py-2 text-xs text-gray-200 transition-colors hover:bg-[#1e2d40] lg:self-end"
               >
                 Reset filters <ArrowRight className="h-3.5 w-3.5" />
               </button>
@@ -461,7 +495,7 @@ export default function EmployeesPage() {
         </Card>
 
         {/* ── Toolbar ── */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
           <div className="relative min-w-60 flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
             <Input value={search} onChange={(e) => { setEmployeePage(1); setSearch(e.target.value); }} placeholder="Search employees..." className="h-10 rounded-lg border-[#1e2d40] bg-[#0d1526] pl-9 text-sm" />
@@ -504,21 +538,21 @@ export default function EmployeesPage() {
         </div>
 
         {/* ── Main grid ── */}
-        <div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {/* Directory */}
-          <div className="min-w-0">
+          <div className="flex min-w-0 min-h-0 flex-1 flex-col">
             {isLoading ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2 xl:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-52 w-full rounded-xl" />)}
               </div>
             ) : filtered.length === 0 ? (
-              <Card><CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <Card className="flex min-h-0 flex-1 flex-col"><CardContent className="flex min-h-0 flex-1 flex-col items-center justify-center py-16 text-center">
                 <Users className="mb-2 h-10 w-10 text-gray-700" />
                 <p className="text-sm text-gray-400">No employees match your filters.</p>
               </CardContent></Card>
             ) : view === "schedule" ? (
               /* Schedule view */
-              <Card><CardContent className="p-0">
+              <Card className="flex min-h-0 flex-1 flex-col"><CardContent className="min-h-0 flex-1 overflow-y-auto p-0">
                 <div className="divide-y divide-[#1e2d40]">
                   {pagedEmployees.map((e) => {
                     const sm = statusMeta(e.status);
@@ -545,7 +579,7 @@ export default function EmployeesPage() {
               </CardContent></Card>
             ) : (
               /* Cards view */
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-4">
                 {pagedEmployees.map((e) => {
                   const sm = statusMeta(e.status);
                   const util = e.utilizationRate || 0;
@@ -557,9 +591,9 @@ export default function EmployeesPage() {
                     <Card
                       key={e._id}
                       onClick={() => { setSelectedId(e._id); setTab("overview"); }}
-                      className={`group cursor-pointer overflow-hidden border-[#173050] bg-[linear-gradient(145deg,#0b1728,#081525_62%,#0d1d32)] transition-all hover:-translate-y-0.5 hover:border-blue-500/50 hover:shadow-[0_14px_32px_rgba(3,10,24,0.34)] ${active ? "border-blue-500 shadow-[0_0_22px_rgba(37,99,235,0.25)]" : ""}`}
+                      className={`group flex h-full cursor-pointer overflow-hidden border-[#173050] bg-[linear-gradient(145deg,#0b1728,#081525_62%,#0d1d32)] transition-all hover:-translate-y-0.5 hover:border-blue-500/50 hover:shadow-[0_14px_32px_rgba(3,10,24,0.34)] ${active ? "border-blue-500 shadow-[0_0_22px_rgba(37,99,235,0.25)]" : ""}`}
                     >
-                      <CardContent className="flex min-h-[214px] flex-col p-3.5">
+                      <CardContent className="flex h-full min-h-[166px] flex-1 flex-col p-3">
                         <div className="flex items-start gap-3">
                           <div className="relative shrink-0">
                             <Avatar className="h-12 w-12 ring-1 ring-white/10 shadow-[0_0_18px_rgba(37,99,235,0.18)]">
@@ -590,7 +624,7 @@ export default function EmployeesPage() {
                           </div>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[#173050] pt-3">
+                        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#173050] pt-2.5">
                           <div className="min-w-0 rounded-lg bg-[#071321]/70 p-2">
                             <p className="truncate text-[10px] text-gray-500">Today&apos;s Appts</p>
                             <p className="mt-1 text-lg font-semibold leading-none text-white">{count}</p>
@@ -607,11 +641,13 @@ export default function EmployeesPage() {
                           </div>
                         </div>
 
-                        <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#14243a]">
-                          <div className={`h-full rounded-full ${utilBar(util)}`} style={{ width: `${Math.min(100, util)}%` }} />
-                        </div>
+                        {util > 0 && (
+                          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#14243a]">
+                            <div className={`h-full rounded-full ${utilBar(util)}`} style={{ width: `${Math.min(100, util)}%` }} />
+                          </div>
+                        )}
 
-                        <button onClick={(event) => { event.stopPropagation(); setSelectedId(e._id); setTab("overview"); }} className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#173050] bg-[#0a1525] py-2 text-xs text-gray-300 transition-colors group-hover:border-blue-500/45 group-hover:text-blue-300">
+                        <button onClick={(event) => { event.stopPropagation(); setSelectedId(e._id); setTab("overview"); }} className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#173050] bg-[#0a1525] py-1.5 text-xs text-gray-300 transition-colors group-hover:border-blue-500/45 group-hover:text-blue-300">
                           View Profile <ArrowRight className="h-3.5 w-3.5" />
                         </button>
                       </CardContent>
@@ -621,7 +657,7 @@ export default function EmployeesPage() {
               </div>
             )}
 
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#173050] pt-4">
+            <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-[#173050] pt-3">
               <p className="text-xs text-gray-500">
                 Showing {filtered.length === 0 ? 0 : (Math.min(employeePage, employeePageCount) - 1) * employeePageSize + 1}
                 -{Math.min(Math.min(employeePage, employeePageCount) * employeePageSize, filtered.length)} of {filtered.length} employees
@@ -704,7 +740,7 @@ function ProfilePanel({
   const sm = statusMeta(employee.status);
   const am = attendanceMeta(attendance);
   const util = employee.utilizationRate || 0;
-  const tabs = ["overview", "schedule", "performance", "settings"] as const;
+  const tabs = EMPLOYEE_PANEL_TABS;
 
   const attendanceDetail = !attendance || !attendance.checkInTime
     ? "Not checked in today"
@@ -714,6 +750,23 @@ function ProfilePanel({
 
   const [start, setStart] = useState(employee.workingHours?.start || "09:00");
   const [end, setEnd] = useState(employee.workingHours?.end || "18:00");
+  const employeeNotes = useMemo(() => {
+    if (typeof window === "undefined") return [];
+    const ids = new Set(
+      [employee?._id, employee?.userId?._id, employee?.userId]
+        .filter(Boolean)
+        .map((value) => String(value)),
+    );
+
+    try {
+      const notes = JSON.parse(window.localStorage.getItem(EMPLOYEE_NOTES_KEY) || "[]");
+      return asArray(notes)
+        .filter((note: any) => asArray(note.employeeIds).some((id: string) => ids.has(String(id))))
+        .slice(0, 4);
+    } catch {
+      return [];
+    }
+  }, [employee]);
 
   const perfStats = [
     { label: "Appointments", value: perf?.monthlyPerformance?.appointments ?? employee.totalAppointments ?? 0, cls: "text-emerald-400" },
@@ -723,8 +776,8 @@ function ProfilePanel({
   ];
 
   return (
-    <Card className="max-h-[calc(100dvh-7.5rem)] min-h-0 self-start overflow-hidden border-[#173050] bg-gradient-to-br from-[#071321] to-[#0b1a2f] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] xl:sticky xl:top-20">
-      <CardContent className="max-h-[calc(100dvh-7.5rem)] overflow-y-auto p-4">
+    <Card className="flex h-full min-h-0 overflow-hidden border-[#173050] bg-gradient-to-br from-[#071321] to-[#0b1a2f] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <CardContent className="min-h-0 flex-1 overflow-y-auto p-4">
         {/* Header */}
         <div className="flex items-start gap-3">
           <Avatar className="h-20 w-20 ring-1 ring-white/10">
@@ -810,6 +863,30 @@ function ProfilePanel({
           </div>
         )}
 
+        {/* Notes */}
+        {tab === "notes" && (
+          <div className="mt-4 rounded-xl border border-[#173050] bg-[#0b1728] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-semibold text-gray-200">Notes</p>
+              <StickyNote className="h-4 w-4 text-blue-300" />
+            </div>
+            {employeeNotes.length > 0 ? (
+              <div className="space-y-2">
+                {employeeNotes.map((note: any) => (
+                  <div key={note.id} className="rounded-lg border border-[#173050] bg-[#0d1a2d] p-3">
+                    <p className="line-clamp-4 text-xs leading-relaxed text-gray-200">{note.body}</p>
+                    <p className="mt-2 text-[10px] text-gray-500">
+                      {note.authorName || "You"} - {formatDate(note.createdAt)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-8 text-center text-xs text-gray-500">No notes yet.</p>
+            )}
+          </div>
+        )}
+
         {/* Performance */}
         {tab === "performance" && (
           <div className="mt-4 space-y-4">
@@ -859,9 +936,15 @@ function ProfilePanel({
             <div>
               <p className="mb-2 text-xs font-semibold text-gray-300">Working Hours</p>
               <div className="flex items-center gap-2">
-                <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} className="h-9" />
+                <div className="relative min-w-0 flex-1">
+                  <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} className="time-picker-white h-9 pr-9" />
+                  <Clock className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white" />
+                </div>
                 <span className="text-gray-500">–</span>
-                <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="h-9" />
+                <div className="relative min-w-0 flex-1">
+                  <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="time-picker-white h-9 pr-9" />
+                  <Clock className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white" />
+                </div>
               </div>
               <Button size="sm" className="mt-2 w-full" disabled={savingSchedule} onClick={() => onSchedule({ workingHours: { start, end } })}>
                 {savingSchedule ? "Saving…" : "Save Working Hours"}
@@ -981,8 +1064,18 @@ function AddEmployeeModal({ open, onOpenChange, onSubmit, pending }: any) {
             <Field label="Position"><Input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} placeholder="Barber" /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Start time"><Input type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} /></Field>
-            <Field label="End time"><Input type="time" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} /></Field>
+            <Field label="Start time">
+              <div className="relative">
+                <Input type="time" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} className="time-picker-white pr-9" />
+                <Clock className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white" />
+              </div>
+            </Field>
+            <Field label="End time">
+              <div className="relative">
+                <Input type="time" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} className="time-picker-white pr-9" />
+                <Clock className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white" />
+              </div>
+            </Field>
           </div>
           <Field label="Days off">
             <div className="flex flex-wrap gap-1.5">

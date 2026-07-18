@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   appointmentsApi,
-  employeesApi,
   liveViewApi,
 } from "@/lib/api";
 import { useSocketEvent } from "@/lib/socket";
@@ -28,7 +27,6 @@ import {
   ArrowRight,
   Bot,
   Calendar,
-  CalendarCheck,
   CalendarPlus,
   CalendarX,
   ChevronDown,
@@ -38,10 +36,7 @@ import {
   Phone,
   PhoneIncoming,
   PhoneMissed,
-  Scissors,
-  Sofa,
   Users,
-  Wrench,
 } from "lucide-react";
 
 /* ─────────────────────────  Helpers  ───────────────────────── */
@@ -170,59 +165,6 @@ const SparkLine = ({ seed, color }: { seed: number; color: string }) => {
   );
 };
 
-const DonutRing = ({
-  value,
-  total,
-  color,
-  label,
-  sub,
-  icon: Icon,
-  iconColor,
-}: {
-  value: number;
-  total: number;
-  color: string;
-  label: string;
-  sub: string;
-  icon: any;
-  iconColor: string;
-}) => {
-  const r = 26;
-  const c = 2 * Math.PI * r;
-  const ratio = total > 0 ? Math.min(1, value / total) : 0;
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-[#1e2d40] bg-[#0d1a2d] p-3">
-      <div className="relative h-16 w-16">
-        <svg className="h-full w-full -rotate-90" viewBox="0 0 64 64">
-          <circle cx="32" cy="32" r={r} fill="none" stroke="#1e2d40" strokeWidth="6" />
-          {total > 0 && (
-            <circle
-              cx="32"
-              cy="32"
-              r={r}
-              fill="none"
-              stroke={color}
-              strokeWidth="6"
-              strokeLinecap="round"
-              strokeDasharray={c}
-              strokeDashoffset={c * (1 - ratio)}
-            />
-          )}
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Icon className={`h-5 w-5 ${iconColor}`} />
-        </div>
-      </div>
-      <div className="text-center">
-        <p className="text-xs font-semibold text-gray-200">{label}</p>
-        <p className="text-[10px] text-gray-500">
-          {total > 0 ? `${value}/${total} ${sub.toLowerCase()}` : "Not set up"}
-        </p>
-      </div>
-    </div>
-  );
-};
-
 /* ─────────────────────────  Page  ───────────────────────── */
 
 export default function LiveViewPage() {
@@ -275,11 +217,6 @@ export default function LiveViewPage() {
     refetchInterval: POLL,
   });
 
-  const { data: empResp } = useQuery({
-    queryKey: ["live-view-employees"],
-    queryFn: () => employeesApi.getAll({ limit: 100 }).then((r) => r.data),
-  });
-
   /* ── Real-time: refresh on socket events ── */
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["live-view-activity"] });
@@ -300,8 +237,6 @@ export default function LiveViewPage() {
   const yAppointments: any[] = useMemo(() => asArray(yApptResp?.data), [yApptResp]);
   const conversations: any[] = useMemo(() => asArray(convResp?.data), [convResp]);
   const calls: any[] = useMemo(() => asArray(callResp?.data), [callResp]);
-  const employees: any[] = useMemo(() => asArray(empResp?.data), [empResp]);
-
   const activeAppts = appointments.filter((a) => a.status !== "cancelled");
   const inShop = activeAppts.filter((a) => ["started", "ongoing"].includes(a.status));
 
@@ -352,21 +287,6 @@ export default function LiveViewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apptResp, now]);
 
-  /* Resource Status — Barbers from real data; the rest not tracked by backend */
-  const totalBarbers = employees.filter((e) =>
-    String(e.position || "").toLowerCase().includes("barber")
-  ).length || employees.length;
-  const busyEmployeeIds = new Set(inShop.map((a) => String(a?.employee?._id)));
-  const busyBarbers = employees.filter((e) =>
-    busyEmployeeIds.has(String(e?.userId?._id))
-  ).length;
-  const totalChairs = Math.max(totalBarbers + 1, inShop.length, 1);
-  const busyChairs = Math.min(inShop.length, totalChairs);
-  const totalRooms = Math.max(2, Math.ceil(totalBarbers / 3));
-  const busyRooms = Math.min(inShop.length, totalRooms);
-  const totalEquipment = Math.max(4, totalBarbers + 1);
-  const busyEquipment = Math.min(activeAppts.length, totalEquipment);
-
   const metricCards = [
     {
       label: "Active Conversations",
@@ -409,15 +329,15 @@ export default function LiveViewPage() {
   const isLoading = activityLoading || apptLoading || convLoading || callLoading;
 
   return (
-    <div>
+    <div className="dashboard-page flex flex-col">
       <Header
         title="Live View"
         subtitle="Real-time activity from all channels. See everything happening right now."
       />
 
-      <div className="space-y-5 p-3 sm:p-4 lg:p-6">
+      <div className="dashboard-content flex flex-col gap-3 2xl:gap-4">
         {/* ── Metric cards ── */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid shrink-0 grid-cols-2 gap-3 lg:grid-cols-4">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (
                 <Card key={i}>
@@ -461,13 +381,13 @@ export default function LiveViewPage() {
         </div>
 
         {/* ── Main grid ── */}
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-3 2xl:gap-4">
           {/* Left column */}
-          <div className="space-y-5 lg:col-span-2">
+          <div className="flex min-h-0 flex-col gap-3 lg:col-span-2 2xl:gap-4">
             {/* Live Activity Feed */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="mb-3 flex items-center justify-between">
+            <Card className="flex min-h-0 flex-1 flex-col">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+                <div className="mb-3 flex shrink-0 items-center justify-between">
                   <p className="text-sm font-semibold text-white">Live Activity Feed</p>
                   <div className="relative">
                     <select
@@ -485,7 +405,7 @@ export default function LiveViewPage() {
                   </div>
                 </div>
 
-                <div className="space-y-1">
+                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
                   {activityLoading ? (
                     Array.from({ length: 6 }).map((_, i) => (
                       <Skeleton key={i} className="h-12 w-full" />
@@ -530,16 +450,16 @@ export default function LiveViewPage() {
                   )}
                 </div>
 
-                <button className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#1e2d40] py-2 text-xs text-blue-400 transition-colors hover:bg-[#1e2d40]">
+                <button className="mt-3 flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#1e2d40] py-2 text-xs text-blue-400 transition-colors hover:bg-[#1e2d40]">
                   View all activity <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </CardContent>
             </Card>
 
             {/* Appointments Today chart */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="mb-1 flex items-start justify-between">
+            <Card className="flex min-h-0 flex-1 flex-col">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+                <div className="mb-1 flex shrink-0 items-start justify-between">
                   <div>
                     <p className="text-sm font-semibold text-white">Appointments Today</p>
                     <p className="mt-1 text-2xl font-extrabold leading-none text-white">
@@ -559,48 +479,50 @@ export default function LiveViewPage() {
                   </span>
                 </div>
                 {apptLoading ? (
-                  <Skeleton className="h-44 w-full" />
+                  <Skeleton className="min-h-0 flex-1 w-full" />
                 ) : (
-                  <ResponsiveContainer width="100%" height={190}>
-                    <AreaChart data={chartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="liveAppts" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35} />
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} interval={1} />
-                      <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                      <Tooltip
-                        contentStyle={{
-                          background: "#0d1a2d",
-                          border: "1px solid #1e2d40",
-                          borderRadius: "8px",
-                          fontSize: "11px",
-                        }}
-                        labelStyle={{ color: "#94a3b8" }}
-                      />
-                      <Area type="monotone" dataKey="count" name="Appointments" stroke="#3b82f6" fill="url(#liveAppts)" strokeWidth={2} dot={{ r: 2, fill: "#3b82f6" }} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <div className="min-h-0 flex-1">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="liveAppts" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} interval={1} />
+                        <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                        <Tooltip
+                          contentStyle={{
+                            background: "#0d1a2d",
+                            border: "1px solid #1e2d40",
+                            borderRadius: "8px",
+                            fontSize: "11px",
+                          }}
+                          labelStyle={{ color: "#94a3b8" }}
+                        />
+                        <Area type="monotone" dataKey="count" name="Appointments" stroke="#3b82f6" fill="url(#liveAppts)" strokeWidth={2} dot={{ r: 2, fill: "#3b82f6" }} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
                 )}
               </CardContent>
             </Card>
           </div>
 
           {/* Right column */}
-          <div className="space-y-5">
+          <div className="flex min-h-0 flex-col gap-3 overflow-hidden 2xl:gap-4">
             {/* Active Conversations */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="mb-3 flex items-center justify-between">
+            <Card className="flex min-h-0 flex-1 flex-col">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+                <div className="mb-3 flex shrink-0 items-center justify-between">
                   <p className="text-sm font-semibold text-white">Active Conversations</p>
                   <Link href="/inbox" className="text-xs text-blue-400 hover:text-blue-300">
                     View all
                   </Link>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
                   {callLoading || convLoading ? (
                     Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)
                   ) : activeCalls.length === 0 && activeConversations.length === 0 ? (
@@ -670,7 +592,7 @@ export default function LiveViewPage() {
 
                 <Link
                   href="/inbox"
-                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#1e2d40] py-2 text-xs text-blue-400 transition-colors hover:bg-[#1e2d40]"
+                  className="mt-3 flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#1e2d40] py-2 text-xs text-blue-400 transition-colors hover:bg-[#1e2d40]"
                 >
                   Go to inbox <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
@@ -678,16 +600,16 @@ export default function LiveViewPage() {
             </Card>
 
             {/* Today's Appointments */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="mb-3 flex items-center justify-between">
+            <Card className="flex min-h-0 flex-1 flex-col">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+                <div className="mb-3 flex shrink-0 items-center justify-between">
                   <p className="text-sm font-semibold text-white">Today&apos;s Appointments</p>
                   <Link href="/calendar" className="text-xs text-blue-400 hover:text-blue-300">
                     View full schedule
                   </Link>
                 </div>
 
-                <div className="space-y-1">
+                <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
                   {apptLoading ? (
                     Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)
                   ) : timeline.sorted.length === 0 ? (
@@ -727,35 +649,10 @@ export default function LiveViewPage() {
 
                 <Link
                   href="/calendar"
-                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#1e2d40] py-2 text-xs text-blue-400 transition-colors hover:bg-[#1e2d40]"
+                  className="mt-3 flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#1e2d40] py-2 text-xs text-blue-400 transition-colors hover:bg-[#1e2d40]"
                 >
                   View full schedule <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-white">Resource Status</p>
-                  <Link href="/employees" className="text-xs text-blue-400 hover:text-blue-300">
-                    View full resources
-                  </Link>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <DonutRing
-                    value={busyBarbers}
-                    total={totalBarbers}
-                    color="#3b82f6"
-                    iconColor="text-blue-400"
-                    icon={Scissors}
-                    label="Barbers"
-                    sub="Busy"
-                  />
-                  <DonutRing value={busyChairs} total={totalChairs} color="#10b981" iconColor="text-emerald-400" icon={Sofa} label="Chairs" sub="In use" />
-                  <DonutRing value={busyRooms} total={totalRooms} color="#a855f7" iconColor="text-purple-400" icon={CalendarCheck} label="Rooms" sub="In use" />
-                  <DonutRing value={busyEquipment} total={totalEquipment} color="#f97316" iconColor="text-orange-400" icon={Wrench} label="Equipment" sub="In use" />
-                </div>
               </CardContent>
             </Card>
           </div>

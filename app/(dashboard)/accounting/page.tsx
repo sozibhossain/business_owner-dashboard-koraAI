@@ -377,7 +377,7 @@ export default function AccountingPage() {
   ];
 
   return (
-    <div>
+    <div className="dashboard-page flex flex-col">
       <Header
         title="Accounting"
         subtitle="Track your finances, manage invoices and grow your business."
@@ -509,11 +509,11 @@ export default function AccountingPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="p-3 sm:p-4 lg:p-6">
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_272px]">
-          <div className="min-w-0 space-y-4">
+      <div className="dashboard-content flex flex-col gap-3 overflow-hidden">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-hidden xl:grid-cols-[minmax(0,1fr)_272px]">
+          <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden">
         {/* Stats with sparklines */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+        <div className="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
           {dashboardLoading
             ? Array.from({ length: 4 }).map((_, index) => (
                 <Card key={index} className="border-[#173050] bg-[radial-gradient(circle_at_100%_0%,rgba(37,99,235,0.12),transparent_34%),linear-gradient(135deg,#071321,#0b1a2f)]">
@@ -546,7 +546,7 @@ export default function AccountingPage() {
         </div>
 
             {/* Revenue chart */}
-            <Card>
+            <Card className="shrink-0">
               <CardHeader>
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <CardTitle className="text-sm">Revenue Overview</CardTitle>
@@ -620,8 +620,8 @@ export default function AccountingPage() {
             </Card>
 
             {/* Invoices */}
-            <Card>
-              <CardHeader>
+            <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <CardHeader className="shrink-0">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <CardTitle className="text-sm">Invoices</CardTitle>
@@ -689,19 +689,19 @@ export default function AccountingPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-0">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-0">
                 {invoicesLoading ? (
-                  <div className="p-4 space-y-3">
+                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                     {Array.from({ length: 4 }).map((_, index) => (
                       <Skeleton key={index} className="h-16 w-full" />
                     ))}
                   </div>
                 ) : invoices.length === 0 ? (
-                  <div className="p-4">
+                  <div className="min-h-0 flex-1 overflow-y-auto p-4">
                     <p className="text-sm text-gray-500">No invoices found.</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="min-h-0 flex-1 overflow-auto">
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-[#1e2d40]">
@@ -802,7 +802,7 @@ export default function AccountingPage() {
                   </div>
                 )}
 
-                <div className="flex items-center justify-between px-4 py-3 border-t border-[#1e2d40]">
+                <div className="flex shrink-0 items-center justify-between border-t border-[#1e2d40] px-4 py-3">
                   <p className="text-xs text-gray-500">
                     Page {meta.page || page} of{" "}
                     {Math.max(1, Math.ceil((meta.total || 0) / (meta.limit || 10)))}
@@ -840,7 +840,7 @@ export default function AccountingPage() {
           </div>
 
           {/* Right panel */}
-          <div className="space-y-4">
+          <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
             <Card className="overflow-hidden border-[#173050] bg-[radial-gradient(circle_at_50%_18%,rgba(37,99,235,0.28),transparent_34%),linear-gradient(135deg,#071321,#0b1a2f)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               <CardContent className="px-4 py-4">
                 <div className="mb-2 flex items-center justify-between">
@@ -941,11 +941,11 @@ export default function AccountingPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="flex min-h-0 flex-1 flex-col">
               <CardHeader>
                 <CardTitle className="text-sm">Quick Actions</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="min-h-0 flex-1">
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
