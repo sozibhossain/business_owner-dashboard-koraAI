@@ -8,7 +8,7 @@ const api = axios.create({
 
 let signOutRequest: Promise<void> | null = null;
 
-const signOutWithSessionError = () => {
+const signOutOnce = () => {
   if (!signOutRequest) {
     signOutRequest = signOut({ callbackUrl: "/login?error=session_expired" }).then(() => undefined);
   }
@@ -16,9 +16,38 @@ const signOutWithSessionError = () => {
   return signOutRequest;
 };
 
+const getJwtExpiry = (token: string) => {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+
+    const normalizedPayload = payload
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(payload.length / 4) * 4, "=");
+    const decodedPayload = JSON.parse(atob(normalizedPayload)) as { exp?: number };
+
+    return decodedPayload.exp ? decodedPayload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
+const isExpiredJwt = (token: string) => {
+  const expiry = getJwtExpiry(token);
+  if (!expiry) return false;
+
+  return expiry <= Date.now() + 30_000;
+};
+
 api.interceptors.request.use(async (config) => {
   const session = await getSession();
   if (session?.accessToken) {
+    if (isExpiredJwt(session.accessToken)) {
+      await signOutOnce();
+      throw new axios.CanceledError("Session expired. Please sign in again.");
+    }
+
     config.headers.Authorization = `Bearer ${session.accessToken}`;
   }
   return config;
@@ -28,7 +57,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      await signOutWithSessionError();
+      await signOutOnce();
     }
     return Promise.reject(error);
   }
