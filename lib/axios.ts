@@ -16,6 +16,14 @@ const signOutOnce = () => {
   return signOutRequest;
 };
 
+const signOutWithReason = (reason: "session_required" | "session_expired") => {
+  if (!signOutRequest) {
+    signOutRequest = signOut({ callbackUrl: `/login?error=${reason}` }).then(() => undefined);
+  }
+
+  return signOutRequest;
+};
+
 const getJwtExpiry = (token: string) => {
   try {
     const payload = token.split(".")[1];
@@ -57,7 +65,8 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      await signOutOnce();
+      const session = await getSession();
+      await signOutWithReason(session?.accessToken ? "session_expired" : "session_required");
     }
     return Promise.reject(error);
   }
