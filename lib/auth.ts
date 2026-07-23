@@ -2,8 +2,6 @@ import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { isBusinessDashboardRole, normalizeRole } from "@/lib/roles";
 
-const authCookiePrefix = "business-owner-dashboard";
-
 class DashboardCredentialsError extends CredentialsSignin {
   constructor(code = "invalid_credentials") {
     super();
@@ -113,11 +111,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
     maxAge: 24 * 60 * 60,
-  },
-  cookies: {
-    sessionToken: { name: `${authCookiePrefix}.session-token` },
-    callbackUrl: { name: `${authCookiePrefix}.callback-url` },
-    csrfToken: { name: `${authCookiePrefix}.csrf-token` },
   },
   trustHost: true,
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
