@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { isBusinessDashboardRole } from "@/lib/roles";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -24,7 +25,7 @@ export const proxy = auth((req) => {
   }
   if (isLoggedIn && !isAuthPage) {
     const role = req.auth?.user?.role;
-    if (role !== "business_owner" && role !== "employee") {
+    if (!isBusinessDashboardRole(role)) {
       return NextResponse.redirect(loginUrl(req, "role_not_allowed"));
     }
   }

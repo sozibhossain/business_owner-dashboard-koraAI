@@ -7,6 +7,7 @@ import { Sparkles, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isBusinessDashboardRole } from "@/lib/roles";
 import Link from "next/link";
 
 const loginErrorMessages: Record<string, string> = {
@@ -21,8 +22,6 @@ const loginErrorMessages: Record<string, string> = {
   session_required: "Please sign in to continue.",
   session_expired: "Your session expired. Please sign in again.",
 };
-
-const allowedRoles = new Set(["business_owner", "employee"]);
 
 function getLoginErrorMessage(result?: {
   code?: string | null;
@@ -101,7 +100,7 @@ export default function LoginPage() {
         return;
       }
 
-      if (!allowedRoles.has(role)) {
+      if (!isBusinessDashboardRole(role)) {
         showLoginError("role_not_allowed");
         return;
       }
