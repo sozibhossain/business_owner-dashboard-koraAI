@@ -84,13 +84,16 @@ function AuthForm({ mode }: { mode: Mode }) {
     setBusy(true);
     try {
       if (mode === "login") {
-        const result = await signIn("credentials", { email: email.trim(), password, mfaCode, redirect: false });
+        const target = params.get("callbackUrl");
+        const redirectTo = target?.startsWith("/") && !target.startsWith("//") && !target.includes("\\") && !target.startsWith("/login") ? target : "/dashboard";
+        // Do not reuse the login URL: its error/code query can make a successful sign-in look like a failure.
+        const result = await signIn("credentials", { email: email.trim(), password, mfaCode, redirect: false, redirectTo });
         const url = result?.url ? new URL(result.url, window.location.origin) : null;
         const failure = result?.code || url?.searchParams.get("code") || result?.error;
         if (!result?.ok || failure) { if (failure === "mfa_required") setNeedsMfa(true); setError(errors[failure || ""] || "Your email or password is incorrect."); return; }
         const session = await getSession(); if (!session || !isBusinessDashboardRole(session.user?.role)) { setError(errors.role_not_allowed); return; }
-        const target = params.get("callbackUrl");
-        router.replace(target?.startsWith("/") && !target.startsWith("//") && !target.startsWith("/login") ? target : "/dashboard"); router.refresh();
+        // Start with the new session cookie and discard any pre-login route/session cache.
+        window.location.replace(redirectTo);
       } else if (mode === "forgot") {
         sessionStorage.removeItem(resetKey); await authApi.forgotPassword({ email: email.trim() }); router.push(`/verify-otp?email=${encodeURIComponent(email.trim())}`);
       } else if (mode === "verify") {
